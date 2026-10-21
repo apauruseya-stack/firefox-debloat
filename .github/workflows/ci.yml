@@ -1,6 +1,6 @@
 name: CI
 
-'on':
+on:
   push:
     branches: [main]
   pull_request:
@@ -17,22 +17,16 @@ jobs:
         run: shellcheck linux/*.sh tests/*.sh scripts/*.sh
       - name: Linux smoke tests
         run: bash tests/linux-smoke.sh
-      - name: README / config consistency
+      - name: README config consistency
         run: bash tests/check-readme.sh
 
   windows:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        shell: [powershell, pwsh]
     steps:
       - uses: actions/checkout@v4
       - name: Install PSScriptAnalyzer
-        shell: ${{ matrix.shell }}
         run: Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
       - name: Lint
-        shell: ${{ matrix.shell }}
         run: Invoke-ScriptAnalyzer -Path windows,scripts -Recurse -Severity Warning
       - name: Windows smoke tests
-        shell: ${{ matrix.shell }}
         run: '& .\tests\windows-smoke.ps1'
