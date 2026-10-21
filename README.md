@@ -413,11 +413,6 @@ Remove or comment out the two `privacy.resistFingerprinting*` lines in your over
 ### 🧘 Zen Browser: enterprise policies (`about:policies`)
 <a href="screenshots/zen-about-policies.png"><img src="screenshots/zen-about-policies.png" alt="Zen about:policies" width="85%"/></a>
 
-<br/><br/>
-
-### 🧘 Zen Browser: installed extensions (`about:addons`)
-<a href="screenshots/zen-about-addons.png"><img src="screenshots/zen-about-addons.png" alt="Zen about:addons" width="85%"/></a>
-
 </div>
 
 ---
