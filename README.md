@@ -363,7 +363,24 @@ Remove or comment out the two `privacy.resistFingerprinting*` lines in your over
 
 ---
 
-## 📸 Screenshots
+## 🦊 Zen Browser (tested)
+
+Zen Browser is a Gecko-based Firefox fork with vertical tabs and workspaces. **The full stack works on Zen**, verified on Zen 1.23.3b / Windows 11:
+
+- ✅ **Policies** - Zen reads `policies.json` from `C:\Program Files\Zen Browser\distribution\` (created with admin rights). `about:policies` shows them as active.
+- ✅ **user.js** - Zen reads `user.js` from `%APPDATA%\zen\Profiles\<profile>\`. The Arkenfox + Betterfox + overrides layers apply normally.
+- ✅ **Extensions** - Firefox-compatible extensions install. Policies-based auto-install (`ExtensionSettings`) is supported.
+- ⚠️ **Script auto-detection** - the firefox-debloat script looks for Mozilla Firefox paths, so it won't find Zen automatically. Use `-PolicyDir "C:\Program Files\Zen Browser\distribution"` and pass the Zen profile path to the merge script.
+
+### Zen screenshots
+
+#### Enterprise policies (`about:policies`)
+![Zen about:policies](screenshots/zen-about-policies.png)
+
+#### Installed extensions (`about:addons`)
+![Zen about:addons](screenshots/zen-about-addons.png)
+
+## 📸 Screenshots (Firefox):
 
 <div align="center">
 
