@@ -12,21 +12,16 @@
 ![Windows](https://img.shields.io/badge/Windows-supported-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-supported-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 ![Firefox](https://img.shields.io/badge/Firefox-152%2B-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)
+![Zen Browser](https://img.shields.io/badge/Zen%20Browser-tested%20on%201.23.3b-6B5BFF?style=for-the-badge)
 ![Reversible](https://img.shields.io/badge/changes-100%25%20reversible-2ea44f?style=for-the-badge)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge)
 ![CI](https://github.com/apauruseya-stack/firefox-hardened/actions/workflows/ci.yml/badge.svg)
 
-**A layered, reversible hardening stack for the real Mozilla Firefox.**
+**A layered, reversible hardening stack for the real Mozilla Firefox, now verified on Zen Browser too.**
 <br/>
 `firefox-debloat` + `Arkenfox` + `Betterfox` + your own overrides, stacked in the right order.
 
-[**Quick start**](#-quick-start) · [**The layers**](#-the-four-layers) · [**Why this stack**](#-why-this-stack) · [**Revert**](#-undo-everything) · [**Screenshots**](#-screenshots)
-
-<br/>
-
-```powershell
-git clone https://github.com/apauruseya-stack/firefox-hardened.git && cd firefox-hardened && powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1
-```
+[**Quick start**](#-quick-start) · [**Zen Browser**](#-zen-browser-tested) · [**The layers**](#-the-four-layers) · [**Why this stack**](#-why-this-stack) · [**Revert**](#-undo-everything) · [**Screenshots**](#-screenshots)
 
 </div>
 
@@ -41,7 +36,8 @@ git clone https://github.com/apauruseya-stack/firefox-hardened.git && cd firefox
 
 | | |
 |---|---|
-| 🦊 **Real Firefox** | Official Mozilla binary. No fork, no third-party build. Full site and DRM support (Netflix, banking) and instant security updates. |
+| 🦊 **Real Firefox** | Official Mozilla binary. This stack forks nothing and ships no third-party build. Full site and DRM support (Netflix, banking) and instant security updates. |
+| 🧘 **Zen Browser too** | The full stack (policies, `user.js`, extensions) works on Zen, verified on Zen 1.23.3b / Windows 11. [See the Zen guide](#-zen-browser-tested). |
 | 🧹 **Debloated** | Telemetry, studies, crash reports, sponsored content, Firefox Suggest, recommendations and AI features are switched off. |
 | 🛡️ **Hardened** | ETP Strict, HTTPS-only, referer trimming, containers, FPP, optional RFP, plus CanvasBlocker. |
 | ⚡ **Fast** | Betterfox network, cache and GFX tuning with speculative loading re-enabled. |
@@ -71,7 +67,7 @@ flowchart LR
 | Layer | Source | Scope | Reversible? |
 |---|---|---|---|
 | 📜 **Policies** | `config/policies.json` (firefox-debloat) | all profiles, all users | ✅ `.debloat-orig` backup |
-| 🧹 **Debloat prefs** | managed block in `user.js` | per profile | ✅ block removed on `-Revert` (Windows) / `--revert` (Linux) |
+| 🧹 **Debloat prefs** | managed block in `user.js` | per profile | ✅ block removed on `-Revert` |
 | 🛡️ **Arkenfox** | full `user.js` template | per profile | ✅ restore backup |
 | ⚡ **Betterfox** | curated `user.js` | per profile | ✅ restore backup |
 | 🎛️ **Overrides** | appended prefs | per profile | ✅ delete the block |
@@ -82,7 +78,7 @@ The debloat script is **idempotent** and leaves everything outside its managed b
 
 > [!WARNING]
 > **Two things to know before you apply:**
-> 1. **Stay logged in.** Arkenfox clears cookies and site data on close by default. This stack's overrides disable that so you stay signed in. If you prefer the stricter default, remove those override lines.
+> 1. **Stay logged in.** Arkenfox clears cookies and site data on close by default. This stack's overrides disable that so you stay signed in. Remove those override lines for the stricter default.
 > 2. **Some sites may break.** ETP Strict, RFP, CanvasBlocker and disabled prefetch can affect banking, captchas and some web apps. Use the shield icon in the address bar to add per-site exceptions, or turn RFP off in overrides.
 
 ## 🚀 Quick start
@@ -98,7 +94,9 @@ The debloat script is **idempotent** and leaves everything outside its managed b
 
 > 💡 Recommended: **Firefox 152+** (needed for the `AIControls` and `DisableAccounts` policies).
 >
-> 🧪 **Tested on:** Firefox 158 / Windows 11 (PowerShell 5.1 and 7). Linux path is documented but the merge step there is newer; macOS is untested (policies path differs - see below).
+> 🧪 **Tested on:** Firefox 158 / Windows 11 (PowerShell 5.1 and 7). Zen Browser 1.23.3b also verified. Linux documented but merge step is newer; macOS is untested (policies path differs).
+>
+> 🧘 Using **Zen Browser** instead? Same requirements, plus the manual paths in the [Zen guide](#-zen-browser-tested).
 
 ### 🪟 Windows
 
@@ -154,6 +152,41 @@ macOS is not tested, but it should mostly work. Notes:
 - The Bash merge script works the same way; profile discovery covers the standard path above.
 
 If you try it on a Mac, please open an issue with what worked and what didn't.
+
+---
+
+## 🧘 Zen Browser (tested)
+
+[Zen Browser](https://zen-browser.app) is a Gecko-based Firefox fork with vertical tabs and workspaces. **The full stack works on Zen**, verified on **Zen 1.23.3b / Windows 11**.
+
+| Layer | Status | Details |
+|---|:---:|---|
+| 📜 **Policies** | ✅ | Zen reads `policies.json` from `C:\Program Files\Zen Browser\distribution\` (created with admin rights). `about:policies` shows them as active. |
+| 🧱 **user.js** | ✅ | Zen reads `user.js` from `%APPDATA%\zen\Profiles\<profile>\`. The Arkenfox + Betterfox + overrides layers apply normally. |
+| 🧩 **Extensions** | ✅ | Firefox-compatible extensions install, and policy-based auto-install (`ExtensionSettings`) is supported. |
+| 🔎 **Script auto-detection** | ⚠️ | The firefox-debloat script looks for Mozilla Firefox paths, so it **won't find Zen automatically**. Point it at Zen manually (below). |
+
+### 🪟 Apply the stack to Zen (Windows)
+
+```powershell
+# 1. Open Zen once, then close it (this creates your profile)
+
+# 2. Debloat layer: tell the script where Zen's policy folder is (admin rights needed)
+powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1 -PolicyDir "C:\Program Files\Zen Browser\distribution"
+
+# 3. Arkenfox + Betterfox layer: pass your Zen profile folder to the merge script
+powershell -ExecutionPolicy Bypass -File .\scripts\merge-arkenfox-betterfox.ps1 -ProfileDir "$env:APPDATA\zen\Profiles\<profile>"
+
+# 4. Restart Zen and check about:policies and about:config
+```
+
+> [!TIP]
+> Not sure which folder is your Zen profile? Open `about:support` in Zen and look at **Profile Folder**.
+
+> [!NOTE]
+> Zen is a fork, so its updates come from Zen's own release channel rather than directly from Mozilla. The stack itself changes nothing about that: it only adds policies and prefs on top.
+
+To undo it on Zen, close Zen and run the same debloat command with `-Revert` and the same `-PolicyDir`, then restore your profile's `user.js` backup as described in [Undo everything](#-undo-everything).
 
 ---
 
@@ -303,7 +336,7 @@ Then restore your profile's `user.js` from the backup the merge script created (
 <details>
 <summary><b>Will this break my logins?</b></summary>
 
-By default, Arkenfox clears cookies and site data on close. This stack's overrides disable that, so you stay signed in. If you prefer the stricter default, remove those override lines. Either way, your saved passwords are untouched (they live in `logins.json` / Firefox's store), and Proton Pass is auto-installed as an alternative.
+By default, Arkenfox clears cookies and site data on close. This stack's overrides disable that, so you stay signed in. If you prefer the stricter default, remove those override lines. Either way, your saved passwords are untouched, and Proton Pass is auto-installed as an alternative.
 
 </details>
 
@@ -321,7 +354,7 @@ By default, Arkenfox clears cookies and site data on close. This stack's overrid
 
 Arkenfox is a `user.js` template you copy over your profile. This stack:
 
-- Adds **firefox-debloat** (official enterprise policies + a managed, idempotent block) for the things Arkenfox can't reach via prefs (telemetry prefixes, policy-locked settings).
+- Adds **firefox-debloat** (official enterprise policies + a managed, idempotent block) for the things Arkenfox can't reach via prefs.
 - Adds **Betterfox** performance and annoyance tuning.
 - Auto-installs a curated extension set (uBlock Origin, Proton Pass, Privacy Badger, TWP, PopUpOFF, Popup Blocker, CanvasBlocker).
 - Sets Brave Search as default and disables Firefox's password manager / autofill.
@@ -342,7 +375,7 @@ Possibly a few. ETP Strict, RFP, CanvasBlocker and disabled prefetch can affect 
 <details>
 <summary><b>How do I add a per-site exception?</b></summary>
 
-Click the shield icon in the address bar on the affected site, then disable "Enhanced Tracking Protection" for that site. For CanvasBlocker, use its toolbar icon. For RFP, add the site to `privacy.resistFingerprinting.exemptions` if needed.
+Click the shield icon in the address bar on the affected site, then disable "Enhanced Tracking Protection" for that site. For CanvasBlocker, use its toolbar icon.
 
 </details>
 
@@ -363,24 +396,7 @@ Remove or comment out the two `privacy.resistFingerprinting*` lines in your over
 
 ---
 
-## 🦊 Zen Browser (tested)
-
-Zen Browser is a Gecko-based Firefox fork with vertical tabs and workspaces. **The full stack works on Zen**, verified on Zen 1.23.3b / Windows 11:
-
-- ✅ **Policies** - Zen reads `policies.json` from `C:\Program Files\Zen Browser\distribution\` (created with admin rights). `about:policies` shows them as active.
-- ✅ **user.js** - Zen reads `user.js` from `%APPDATA%\zen\Profiles\<profile>\`. The Arkenfox + Betterfox + overrides layers apply normally.
-- ✅ **Extensions** - Firefox-compatible extensions install. Policies-based auto-install (`ExtensionSettings`) is supported.
-- ⚠️ **Script auto-detection** - the firefox-debloat script looks for Mozilla Firefox paths, so it won't find Zen automatically. Use `-PolicyDir "C:\Program Files\Zen Browser\distribution"` and pass the Zen profile path to the merge script.
-
-### Zen screenshots
-
-#### Enterprise policies (`about:policies`)
-![Zen about:policies](screenshots/zen-about-policies.png)
-
-#### Installed extensions (`about:addons`)
-![Zen about:addons](screenshots/zen-about-addons.png)
-
-## 📸 Screenshots (Firefox):
+## 📸 Screenshots
 
 <div align="center">
 
@@ -392,46 +408,68 @@ Zen Browser is a Gecko-based Firefox fork with vertical tabs and workspaces. **T
 ### Installed extensions (`about:addons`)
 <a href="screenshots/about-addons.png"><img src="screenshots/about-addons.png" alt="about:addons" width="85%"/></a>
 
-</div>
+<br/><br/>
 
----
+### 🧘 Zen Browser: enterprise policies (`about:policies`)
+<a href="screenshots/zen-about-policies.png"><img src="screenshots/zen-about-policies.png" alt="Zen about:policies" width="85%"/></a>
 
-## 🙏 Credits & licenses
+<br/><br/>
 
-| Project | Role | License |
-|---|---|---|
-| [firefox-debloat](https://github.com/henriquesebastiao/firefox-debloat) by henriquesebastiao | Vendored under `windows/`, `linux/`, `config/`, `tests/` | AGPL-3.0 (original license kept) |
-| [Arkenfox user.js](https://github.com/arkenfox/user.js) | Deep privacy layer | MIT |
-| [Betterfox](https://github.com/yokoffing/Betterfox) | Performance and annoyance layer | see its LICENSE |
-| This repo's original additions (merge script, overrides example, README) | Glue | AGPL-3.0, to stay compatible with the vendored code |
-
-If you redistribute, keep the licenses and attribution.
-
-<br/>
-
-<div align="center">
-
-**Found it useful? Drop a ⭐ and share it.**
-
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=120&section=footer" alt="footer" width="100%"/>
+### 🧘 Zen Browser: installed extensions (`about:addons`)
+<a href="screenshots/zen-about-addons.png"><img src="screenshots/zen-about-addons.png" alt="Zen about:addons" width="85%"/></a>
 
 </div>
 
 ---
+
+## 📋 Documented config items
 
 <details>
-<summary><b>Documented config items (auto-checked against <code>config/</code>)</b></summary>
+<summary><b>Auto-checked against <code>config/</code> by CI</b></summary>
 
 Every preference and policy applied by this stack, listed so the CI consistency check passes. See the upstream firefox-debloat README for the human-readable settings reference.
 
 - `AIControls`
 - `AIControls.Default`
 - `AIControls.Translations`
+- `AutofillAddressEnabled`
+- `AutofillCreditCardEnabled`
+- `DisableAccounts`
+- `DisableDefaultBrowserAgent`
+- `DisableFirefoxStudies`
+- `DisableTelemetry`
+- `DontCheckDefaultBrowser`
+- `ExtensionSettings`
+- `ExtensionSettings.78272b6fa58f4a1abaac99321d503a20@proton.me`
+- `ExtensionSettings.CanvasBlocker@kkapsner.de`
+- `ExtensionSettings.jid1-MnnxcxisBPnSXQ@jetpack`
+- `ExtensionSettings.uBlock0@raymondhill.net`
+- `ExtensionSettings.{036a55b4-5e72-4d05-a06c-cba2dfcc134a}`
+- `ExtensionSettings.{154cddeb-4c8b-4627-a478-c7e5b427ffdf}`
+- `ExtensionSettings.{de22fd49-c9ab-4359-b722-b3febdc3a0b0}`
+- `FirefoxHome`
+- `FirefoxHome.SponsoredStories`
+- `FirefoxHome.SponsoredTopSites`
+- `FirefoxHome.Stories`
+- `FirefoxSuggest`
+- `FirefoxSuggest.ImproveSuggest`
+- `FirefoxSuggest.SponsoredSuggestions`
+- `FirefoxSuggest.WebSuggestions`
+- `OfferToSaveLogins`
+- `PasswordManagerEnabled`
+- `Preferences`
+- `SearchEngines`
+- `SearchEngines.Add`
+- `SearchEngines.Default`
+- `UserMessaging`
+- `UserMessaging.ExtensionRecommendations`
+- `UserMessaging.FeatureRecommendations`
+- `UserMessaging.MoreFromMozilla`
+- `UserMessaging.SkipOnboarding`
+- `UserMessaging.UrlbarInterventions`
 - `app.normandy.api_url`
 - `app.normandy.enabled`
 - `app.shield.optoutstudies.enabled`
-- `AutofillAddressEnabled`
-- `AutofillCreditCardEnabled`
 - `breakpad.reportURL`
 - `browser.aboutwelcome.enabled`
 - `browser.ai.control.linkPreviewKeyPoints`
@@ -462,41 +500,14 @@ Every preference and policy applied by this stack, listed so the CI consistency 
 - `datareporting.healthreport.uploadEnabled`
 - `datareporting.policy.dataSubmissionEnabled`
 - `datareporting.usage.uploadEnabled`
-- `DisableAccounts`
-- `DisableDefaultBrowserAgent`
-- `DisableFirefoxStudies`
-- `DisableTelemetry`
 - `dom.payments.request.supported`
 - `dom.private-attribution.submission.enabled`
-- `DontCheckDefaultBrowser`
 - `extensions.formautofill.addresses.enabled`
 - `extensions.formautofill.creditCards.enabled`
 - `extensions.getAddons.showPane`
 - `extensions.htmlaboutaddons.recommendations.enabled`
-- `ExtensionSettings`
-- `ExtensionSettings.{036a55b4-5e72-4d05-a06c-cba2dfcc134a}`
-- `ExtensionSettings.{154cddeb-4c8b-4627-a478-c7e5b427ffdf}`
-- `ExtensionSettings.{de22fd49-c9ab-4359-b722-b3febdc3a0b0}`
-- `ExtensionSettings.78272b6fa58f4a1abaac99321d503a20@proton.me`
-- `ExtensionSettings.CanvasBlocker@kkapsner.de`
-- `ExtensionSettings.jid1-MnnxcxisBPnSXQ@jetpack`
-- `ExtensionSettings.uBlock0@raymondhill.net`
-- `FirefoxHome`
-- `FirefoxHome.SponsoredStories`
-- `FirefoxHome.SponsoredTopSites`
-- `FirefoxHome.Stories`
-- `FirefoxSuggest`
-- `FirefoxSuggest.ImproveSuggest`
-- `FirefoxSuggest.SponsoredSuggestions`
-- `FirefoxSuggest.WebSuggestions`
 - `identity.fxaccounts.enabled`
-- `OfferToSaveLogins`
-- `PasswordManagerEnabled`
-- `Preferences`
 - `privacy.donottrackheader.enabled`
-- `SearchEngines`
-- `SearchEngines.Add`
-- `SearchEngines.Default`
 - `signon.autofillForms`
 - `signon.rememberSignons`
 - `toolkit.coverage.endpoint.base`
@@ -511,11 +522,29 @@ Every preference and policy applied by this stack, listed so the CI consistency 
 - `toolkit.telemetry.shutdownPingSender.enabled`
 - `toolkit.telemetry.unified`
 - `toolkit.telemetry.updatePing.enabled`
-- `UserMessaging`
-- `UserMessaging.ExtensionRecommendations`
-- `UserMessaging.FeatureRecommendations`
-- `UserMessaging.MoreFromMozilla`
-- `UserMessaging.SkipOnboarding`
-- `UserMessaging.UrlbarInterventions`
 
 </details>
+
+---
+
+## 🙏 Credits & licenses
+
+| Project | Role | License |
+|---|---|---|
+| [firefox-debloat](https://github.com/henriquesebastiao/firefox-debloat) by henriquesebastiao | Vendored under `windows/`, `linux/`, `config/`, `tests/` | AGPL-3.0 (original license kept) |
+| [Arkenfox user.js](https://github.com/arkenfox/user.js) | Deep privacy layer | MIT |
+| [Zen Browser](https://zen-browser.app) | Additional supported browser (tested, not bundled) | see its repository |
+| [Betterfox](https://github.com/yokoffing/Betterfox) | Performance and annoyance layer | see its LICENSE |
+| This repo's original additions (merge script, overrides example, README) | Glue | AGPL-3.0, to stay compatible with the vendored code |
+
+If you redistribute, keep the licenses and attribution.
+
+<br/>
+
+<div align="center">
+
+**Found it useful? Drop a ⭐ and share it.**
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=120&section=footer" alt="footer" width="100%"/>
+
+</div>
