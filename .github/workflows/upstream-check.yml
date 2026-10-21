@@ -36,10 +36,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          body="Upstream versions changed. Review and update the pinned commits and checksums in \`scripts/merge-arkenfox-betterfox.sh\` and \`.ps1\`.
+          cat > /tmp/body.md <<'EOF'
+          Upstream versions changed. Review and update the pinned commits and checksums in
+          `scripts/merge-arkenfox-betterfox.sh` and `.ps1`.
 
-          - Arkenfox: \`${{ steps.compare.outputs.pinned_ark }}\` -> \`${{ steps.compare.outputs.latest_ark }}\`
-          - Betterfox: \`${{ steps.compare.outputs.pinned_bf }}\` -> \`${{ steps.compare.outputs.latest_bf }}\`
+          - Arkenfox: `${{ steps.compare.outputs.pinned_ark }}` -> `${{ steps.compare.outputs.latest_ark }}`
+          - Betterfox: `${{ steps.compare.outputs.pinned_bf }}` -> `${{ steps.compare.outputs.latest_bf }}`
 
-          Download the new \`user.js\` files, recompute SHA-256, update both scripts, then run the tests."
-          gh issue create --title "Upstream update available (Arkenfox/Betterfox)" --body "$body" || true
+          Download the new `user.js` files, recompute SHA-256, update both scripts, then run the tests.
+          EOF
+          gh issue create --title "Upstream update available (Arkenfox/Betterfox)" --body-file /tmp/body.md || true

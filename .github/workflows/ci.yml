@@ -35,4 +35,4 @@ jobs:
         run: Invoke-ScriptAnalyzer -Path windows,scripts -Recurse -Severity Warning
       - name: Windows smoke tests
         shell: ${{ matrix.shell }}
-        run: & .\tests\windows-smoke.ps1
+        run: '& .\tests\windows-smoke.ps1'
