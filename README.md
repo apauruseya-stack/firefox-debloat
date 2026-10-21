@@ -34,7 +34,7 @@ Everything is applied on top of the **official Mozilla Firefox binary** — no f
 - Disables telemetry, studies (Shield/Normandy), crash reports, sponsored content, Firefox Suggest, recommendations, AI features, Mozilla promotions.
 - Sets the default search engine to **Brave Search** (via the `SearchEngines` policy).
 - Brave Search's "Anonymous local results", "Discussions" and "Anonymous usage metrics" are **Brave Search preferences**, not Firefox settings. After first search, open Brave Search's gear icon → Preferences and turn them off; the choice persists in a cookie for this profile.
-- Auto-installs **uBlock Origin**, **Proton Pass**, **Privacy Badger**, **TablissNG**, **TWP (Translate Web Pages)**, **PopUpOFF** and **Popup Blocker (strict)** (via `ExtensionSettings`).
+- Auto-installs **uBlock Origin**, **Proton Pass**, **Privacy Badger**, **TablissNG**, **TWP (Translate Web Pages)**, **PopUpOFF**, **Popup Blocker (strict)** and **CanvasBlocker** (via `ExtensionSettings`).
 - Disables Firefox's built-in password manager, address/credit-card autofill and Web Payments by default (Proton Pass replaces them).
 - Optionally disables Firefox Account / Sync (`-KeepSync` to keep it).
 - Hardens privacy (ETP Strict, HTTPS-only, disk cache off, referer trimming, containers, FPP, optional RFP, sanitizing).
@@ -147,7 +147,7 @@ The firefox-debloat script is idempotent and keeps anything outside its managed 
 3. **Speculative loading re-enabled** (for speed) is a minor privacy trade-off.
 4. **Disk cache stays off** (privacy). Enable it in overrides for faster repeat loads.
 5. **Site breakage.** ETP Strict + RFP + disabled prefetch can break a few sites (banking, captchas, some web apps). Use the shield icon in the address bar to add per-site exceptions.
-6. **Extensions are force-installed** (uBlock Origin, Proton Pass, Privacy Badger, TablissNG, TWP, PopUpOFF, Popup Blocker) via policy. To change the list, edit `ExtensionSettings` in `config/policies.json` and re-run. To disable auto-install entirely, remove that block.
+6. **Extensions are force-installed** (uBlock Origin, Proton Pass, Privacy Badger, TablissNG, TWP, PopUpOFF, Popup Blocker, CanvasBlocker) via policy. To change the list, edit `ExtensionSettings` in `config/policies.json` and re-run. To disable auto-install entirely, remove that block.
 7. **Profile data never committed.** `.gitignore` excludes `prefs.js`, backups, and `user-overrides.js`. Do not commit real profile files.
 
 ---

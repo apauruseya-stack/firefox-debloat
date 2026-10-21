@@ -57,6 +57,10 @@
         "installation_mode": "force_installed",
         "install_url": "https://addons.mozilla.org/firefox/downloads/latest/privacy-badger17/latest.xpi"
       },
+      "CanvasBlocker@kkapsner.de": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/canvasblocker/latest.xpi"
+      },
       "extension@tabliss-maintained": {
         "installation_mode": "force_installed",
         "install_url": "https://addons.mozilla.org/firefox/downloads/latest/tablissng/latest.xpi"

@@ -126,3 +126,7 @@ user_pref("extensions.formautofill.creditCards.enabled", false);
 // Disables Web Payments (Payment Request API).
 user_pref("dom.payments.request.supported", false);
 // Default search engine is set via the SearchEngines policy (Brave Search).
+
+// --- Fingerprinting (reduce identifying bits) ---
+// Disables the DNT header: it is rare and itself identifying (Cover Your Tracks).
+user_pref("privacy.donottrackheader.enabled", false);
