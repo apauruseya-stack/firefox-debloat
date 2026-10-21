@@ -173,6 +173,17 @@ go back to Firefox defaults. Policies revert via the `.debloat-orig` backup auto
 
 ---
 
+## Screenshots
+
+### Enterprise policies (`about:policies`)
+![about:policies](screenshots/about-policies.png)
+
+### Installed extensions (`about:addons`)
+![about:addons](screenshots/about-addons.png)
+
+### New tab page (Tabliss)
+![new tab](screenshots/about-newtab.png)
+
 ## Credits & licenses
 
 - [firefox-debloat](https://github.com/henriquesebastiao/firefox-debloat) by henriquesebastiao — AGPL-3.0. Vendored under `windows/`, `linux/`, `config/`, `tests/` with its original license.
