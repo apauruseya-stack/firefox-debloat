@@ -35,7 +35,7 @@ Everything runs on top of the **official Mozilla Firefox binary** - no fork, no 
 
 - Disables telemetry, studies (Shield/Normandy), crash reports, sponsored content, Firefox Suggest, recommendations, AI features, Mozilla promotions.
 - Sets the default search engine to **Brave Search** (via the `SearchEngines` policy).
-- Auto-installs **uBlock Origin**, **Proton Pass**, **Privacy Badger**, **TablissNG**, **TWP (Translate Web Pages)**, **PopUpOFF**, **Popup Blocker (strict)** and **CanvasBlocker** (via `ExtensionSettings`).
+- Auto-installs **uBlock Origin**, **Proton Pass**, **Privacy Badger**, **TWP (Translate Web Pages)**, **PopUpOFF**, **Popup Blocker (strict)** and **CanvasBlocker** (via `ExtensionSettings`).
 - Disables Firefox's built-in password manager, address and credit-card autofill, and Web Payments by default (Proton Pass replaces them).
 - Cleans the new tab page and UI annoyances (Tabliss replaces the new tab page).
 - Hardens privacy (ETP Strict, HTTPS-only, disk cache off, referer trimming, containers, FPP, optional RFP, sanitizing).
@@ -49,7 +49,7 @@ Everything runs on top of the **official Mozilla Firefox binary** - no fork, no 
 - Disable security features (Safe Browsing, updates, Remote Settings stay on).
 - Harden against fingerprinting beyond FPP/RFP/CanvasBlocker (no custom fingerprint spoofs beyond what Arkenfox provides).
 - Touch cookies, history or passwords beyond the sanitizing-on-shutdown defaults (which you can disable - see overrides).
-- Change your homepage URL (the new tab page is replaced by Tabliss; the startup page is left blank by Arkenfox).
+- Change your homepage URL (the startup page is left blank by Arkenfox; the new tab page is left to Firefox defaults unless you add an extension).
 
 ---
 
@@ -141,8 +141,6 @@ The firefox-debloat script is idempotent and keeps anything outside its managed 
 - **Block local translation too:** `-BlockTranslations` / `--block-translations`.
 - **Arkenfox options:** most are controlled by editing prefs in `user.js` (look for `[SETUP-*]` tags in the Arkenfox file). RFP is off by default; enable it in overrides if you want it.
 - **Personal overrides:** copy `overrides/user-overrides.example.js`, edit, and append to the end of your profile's `user.js`.
-- **Tabliss new tab:** `browser.newtabpage.enabled` must be `true` (set in the overrides example) so Tabliss can render.
-
 ---
 
 ## Warnings and side effects
@@ -152,7 +150,7 @@ The firefox-debloat script is idempotent and keeps anything outside its managed 
 3. **Speculative loading re-enabled** (for speed) is a minor privacy trade-off.
 4. **Disk cache stays off** (privacy). Enable it in overrides for faster repeat loads.
 5. **Site breakage.** ETP Strict + RFP + disabled prefetch can break a few sites (banking, captchas, some web apps). Use the shield icon in the address bar to add per-site exceptions.
-6. **Extensions are force-installed** (uBlock Origin, Proton Pass, Privacy Badger, TablissNG, TWP, PopUpOFF, Popup Blocker, CanvasBlocker) via policy. To change the list, edit `ExtensionSettings` in `config/policies.json` and re-run. To disable auto-install entirely, remove that block.
+6. **Extensions are force-installed** (uBlock Origin, Proton Pass, Privacy Badger, TWP, PopUpOFF, Popup Blocker, CanvasBlocker) via policy. To change the list, edit `ExtensionSettings` in `config/policies.json` and re-run. To disable auto-install entirely, remove that block.
 7. **CanvasBlocker + RFP.** CanvasBlocker's FAQ confirms RFP can stay on. CanvasBlocker's default mode is "fake" (per-site randomization). Having both RFP and CanvasBlocker is supported.
 8. **Brave Search preferences** ("Anonymous local results", "Discussions", "Anonymous usage metrics") are Brave Search settings, not Firefox settings. After your first search, open Brave Search's gear icon -> Preferences and turn them off; the choice persists in a cookie for this profile.
 9. **Profile data never committed.** `.gitignore` excludes `prefs.js`, backups, and `user-overrides.js`. Do not commit real profile files.
@@ -178,6 +176,49 @@ Then restore your profile's `user.js` from the backup created by the merge scrip
 
 ---
 
+## Why this stack (vs. LibreWolf and stock Firefox)
+
+This section explains the practical benefits of this stack over **original Firefox** and **LibreWolf**.
+
+### Fingerprinting
+
+- **Original Firefox:** no fingerprinting protection. Your real UA, screen size, timezone, canvas, WebGL, fonts, hardware concurrency and DNT header are all exposed. Cover Your Tracks reports a unique fingerprint.
+- **LibreWolf:** enables RFP (Resist Fingerprinting) by default. Strong, but RFP forces GMT timezone, light theme and window letterboxing, and breaks some sites. The RFP population is small, so you can still look unique among all browsers.
+- **This stack:** RFP is available (enable in overrides) plus CanvasBlocker in "fake" mode, which randomizes canvas / WebGL / audio / DOMRect / screen / navigator per site (Brave-like). DNT header is disabled to remove an identifying bit. FPP (via ETP Strict) is on by default. You get per-site randomization instead of a single fixed spoof, which makes cross-site tracking much harder while keeping more sites working.
+
+### Safety and security
+
+- **Original Firefox:** Safe Browsing, updates and Remote Settings are on, but telemetry, studies and crash reports send data out.
+- **LibreWolf:** disables many features; some security-related remote services may be reduced. Updates come from LibreWolf's own channel (can lag).
+- **This stack:** keeps all security features on (Safe Browsing, updates, Remote Settings, captive portal). Removes data collection (telemetry, studies, crash reports) and ads / tracking content. Uses the official Mozilla binary, so you get Mozilla's security updates immediately. Policies are official enterprise mechanisms (`about:policies`), reversible, and auditable.
+
+### Speed and performance
+
+- **Original Firefox:** default network and cache settings; speculative loading on.
+- **LibreWolf:** RFP and stricter settings can slow some page loads; letterboxing adds overhead.
+- **This stack:** Betterfox Fastfox tuning (more connections, larger buffers, DNS cache, media/image cache, skia font cache) plus re-enabled speculative loading (DNS prefetch, link prefetch, speculative connections) for faster page loads. Disk cache is off for privacy (enable in overrides if you want faster repeat loads).
+
+### Convenience and compatibility
+
+- **Original Firefox:** nothing to set up, but noisy (telemetry, ads, AI, recommendations).
+- **LibreWolf:** separate browser, own profile, own update channel, breaks some sites (banking, video, captchas), harder to undo.
+- **This stack:** runs on stock Firefox - full site and DRM compatibility (Netflix, banking), official updates, reversible (`-Revert`), keeps your profile and extensions. Auto-installs a curated extension set (uBlock Origin, Proton Pass, Privacy Badger, TWP, PopUpOFF, Popup Blocker, CanvasBlocker). Sync can be kept with `-KeepSync`.
+
+### Summary table
+
+| | Stock Firefox | LibreWolf | This stack |
+|---|---|---|---|
+| Telemetry / ads / AI removed | No | Yes | Yes |
+| Security features kept | Yes | Mostly | Yes |
+| Official Mozilla binary and updates | Yes | No | Yes |
+| Site / DRM compatibility | Best | Reduced | Best |
+| Fingerprinting protection | None | RFP (standardize) | FPP + optional RFP + CanvasBlocker (randomize) |
+| Reversible | n/a | Uninstall | Yes (`-Revert`) |
+| Breakage risk | None | Higher | Low |
+| Setup effort | None | Install browser | Run scripts |
+
+---
+
 ## Screenshots
 
 ### Enterprise policies (`about:policies`)
@@ -185,9 +226,6 @@ Then restore your profile's `user.js` from the backup created by the merge scrip
 
 ### Installed extensions (`about:addons`)
 ![about:addons](screenshots/about-addons.png)
-
-### New tab page (Tabliss)
-![new tab](screenshots/about-newtab.png)
 
 ---
 

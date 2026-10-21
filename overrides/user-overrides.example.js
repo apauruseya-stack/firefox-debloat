@@ -33,8 +33,8 @@ user_pref("browser.urlbar.speculativeConnect.enabled", true);
 user_pref("browser.places.speculativeConnect.enabled", true);
 
 /* ---------- New tab page ---------- */
-// New tab page enabled so Tabliss can render (Tabliss replaces about:newtab).
-user_pref("browser.newtabpage.enabled", true);
+// Blank new tab (no Top Sites / Highlights / sponsored content). Arkenfox default.
+user_pref("browser.newtabpage.enabled", false);
 // If you prefer a populated new tab page instead, comment the line above and use:
 // user_pref("browser.newtabpage.activity-stream.feeds.topsites", false);
 // user_pref("browser.newtabpage.activity-stream.feeds.section.highlights", false);
