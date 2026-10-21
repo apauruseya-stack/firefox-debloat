@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016  # single quotes are used on purpose for jq filters and sed patterns
 # firefox-debloat.sh: disables Firefox telemetry, ads, recommendations and AI features.
 #
 # Works in two layers:
@@ -304,7 +305,7 @@ clear_prefs() {
 }
 
 apply_user() {
-  local profiles p f running=0 removed ledger values newledger
+  local profiles p f running=0 removed ledger newledger
   mapfile -t profiles < <(find_profiles)
   if (( ${#profiles[@]} == 0 )); then
     warn "No Firefox profile found. Open Firefox once and run again."
@@ -342,7 +343,7 @@ apply_user() {
 }
 
 revert_user() {
-  local profiles p f ledger names
+  local profiles p f ledger
   if firefox_running; then
     die "Close Firefox before reverting (it rewrites prefs.js on exit)."
   fi
@@ -470,7 +471,7 @@ apply_system() {
 }
 
 revert_system() {
-  local ledger mine current kept="" changed=0 tmp written now
+  local ledger mine kept="" changed=0 tmp written now
   ledger="$(ledger_read "$SYSTEM_LEDGER")"
   mine="$(printf '%s' "$ledger" | jqr -r --arg f "$POLICY_FILE" '.policies[$f].values // {} | keys[]' 2>/dev/null || true)"
   if [[ ! -e "$POLICY_ORIG" ]] && [[ -z "$mine" ]]; then
