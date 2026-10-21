@@ -27,6 +27,6 @@ jobs:
       - name: Install PSScriptAnalyzer
         run: Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
       - name: Lint
-        run: Invoke-ScriptAnalyzer -Path windows,scripts -Recurse -Severity Warning
+        run: Invoke-ScriptAnalyzer -Path windows -Recurse -Severity Warning; Invoke-ScriptAnalyzer -Path scripts -Recurse -Severity Warning
       - name: Windows smoke tests
         run: '& .\tests\windows-smoke.ps1'
