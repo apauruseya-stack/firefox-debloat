@@ -114,3 +114,15 @@ user_pref("browser.ml.linkPreview.enabled", false);
 // --- Account and Sync ---
 // Turns off Firefox Account and Sync (the DisableAccounts policy also locks this pref).
 user_pref("identity.fxaccounts.enabled", false);
+
+// --- Passwords, autofill and payments ---
+// Disables Firefox's built-in password manager (Proton Pass replaces it).
+user_pref("signon.rememberSignons", false);
+user_pref("signon.autofillForms", false);
+// Disables address autofill.
+user_pref("extensions.formautofill.addresses.enabled", false);
+// Disables credit card autofill.
+user_pref("extensions.formautofill.creditCards.enabled", false);
+// Disables Web Payments (Payment Request API).
+user_pref("dom.payments.request.supported", false);
+// Default search engine is set via the SearchEngines policy (Brave Search).

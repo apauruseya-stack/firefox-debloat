@@ -32,6 +32,9 @@ Everything is applied on top of the **official Mozilla Firefox binary** — no f
 
 **Does:**
 - Disables telemetry, studies (Shield/Normandy), crash reports, sponsored content, Firefox Suggest, recommendations, AI features, Mozilla promotions.
+- Sets the default search engine to **Brave Search** (via the `SearchEngines` policy).
+- Auto-installs **uBlock Origin**, **Proton Pass** and **Privacy Badger** (via `ExtensionSettings`).
+- Disables Firefox's built-in password manager, address/credit-card autofill and Web Payments by default (Proton Pass replaces them).
 - Optionally disables Firefox Account / Sync (`-KeepSync` to keep it).
 - Hardens privacy (ETP Strict, HTTPS-only, disk cache off, referer trimming, containers, FPP, optional RFP, sanitizing).
 - Improves perceived performance (network connections, caches, GFX, speculative loading).
@@ -143,7 +146,7 @@ The firefox-debloat script is idempotent and keeps anything outside its managed 
 3. **Speculative loading re-enabled** (for speed) is a minor privacy trade-off.
 4. **Disk cache stays off** (privacy). Enable it in overrides for faster repeat loads.
 5. **Site breakage.** ETP Strict + RFP + disabled prefetch can break a few sites (banking, captchas, some web apps). Use the shield icon in the address bar to add per-site exceptions.
-6. **No extensions installed.** Add uBlock Origin manually from addons.mozilla.org (watch for look-alikes).
+6. **Extensions are force-installed** (uBlock Origin, Proton Pass, Privacy Badger) via policy. To change the list, edit `ExtensionSettings` in `config/policies.json` and re-run. To disable auto-install entirely, remove that block.
 7. **Profile data never committed.** `.gitignore` excludes `prefs.js`, backups, and `user-overrides.js`. Do not commit real profile files.
 
 ---

@@ -4,6 +4,10 @@
     "DisableFirefoxStudies": true,
     "DontCheckDefaultBrowser": true,
     "DisableAccounts": true,
+    "PasswordManagerEnabled": false,
+    "OfferToSaveLogins": false,
+    "AutofillAddressEnabled": false,
+    "AutofillCreditCardEnabled": false,
     "FirefoxHome": {
       "SponsoredTopSites": false,
       "Stories": false,
@@ -27,6 +31,32 @@
     "AIControls": {
       "Default": { "Value": "blocked", "Locked": false },
       "Translations": { "Value": "available", "Locked": false }
+    },
+    "SearchEngines": {
+      "Add": [
+        {
+          "Name": "Brave Search",
+          "URLTemplate": "https://search.brave.com/search?q={searchTerms}",
+          "Method": "GET",
+          "IconURL": "https://search.brave.com/favicon.ico",
+          "Alias": "brave"
+        }
+      ],
+      "Default": "Brave Search"
+    },
+    "ExtensionSettings": {
+      "uBlock0@raymondhill.net": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
+      },
+      "78272b6fa58f4a1abaac99321d503a20@proton.me": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/proton-pass/latest.xpi"
+      },
+      "jid1-MnnxcxisBPnSXQ@jetpack": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/privacy-badger17/latest.xpi"
+      }
     },
     "Preferences": {
       "dom.private-attribution.submission.enabled": { "Value": false, "Status": "default" },
