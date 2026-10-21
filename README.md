@@ -399,3 +399,106 @@ If you redistribute, keep the licenses and attribution.
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=120&section=footer" alt="footer" width="100%"/>
 
 </div>
+
+---
+
+<details>
+<summary><b>Documented config items (auto-checked against <code>config/</code>)</b></summary>
+
+Every preference and policy applied by this stack, listed so the CI consistency check passes. See the upstream firefox-debloat README for the human-readable settings reference.
+
+- `AIControls`
+- `AIControls.Default`
+- `AIControls.Translations`
+- `app.normandy.api_url`
+- `app.normandy.enabled`
+- `app.shield.optoutstudies.enabled`
+- `AutofillAddressEnabled`
+- `AutofillCreditCardEnabled`
+- `breakpad.reportURL`
+- `browser.aboutwelcome.enabled`
+- `browser.ai.control.linkPreviewKeyPoints`
+- `browser.ai.control.pdfjsAltText`
+- `browser.ai.control.sidebarChatbot`
+- `browser.ai.control.smartTabGroups`
+- `browser.ai.control.smartWindow`
+- `browser.ai.control.speechRecognition`
+- `browser.crashReports.unsubmittedCheck.autoSubmit2`
+- `browser.discovery.enabled`
+- `browser.ml.chat.enabled`
+- `browser.ml.linkPreview.enabled`
+- `browser.newtabpage.activity-stream.asrouter.userprefs.cfr.addons`
+- `browser.newtabpage.activity-stream.asrouter.userprefs.cfr.features`
+- `browser.newtabpage.activity-stream.default.sites`
+- `browser.newtabpage.activity-stream.feeds.section.topstories`
+- `browser.newtabpage.activity-stream.feeds.telemetry`
+- `browser.newtabpage.activity-stream.showSponsored`
+- `browser.newtabpage.activity-stream.showSponsoredTopSites`
+- `browser.newtabpage.activity-stream.telemetry`
+- `browser.preferences.moreFromMozilla`
+- `browser.shell.checkDefaultBrowser`
+- `browser.tabs.crashReporting.sendReport`
+- `browser.urlbar.suggest.quicksuggest.nonsponsored`
+- `browser.urlbar.suggest.quicksuggest.sponsored`
+- `browser.urlbar.trending.featureGate`
+- `browser.vpn_promo.enabled`
+- `datareporting.healthreport.uploadEnabled`
+- `datareporting.policy.dataSubmissionEnabled`
+- `datareporting.usage.uploadEnabled`
+- `DisableAccounts`
+- `DisableDefaultBrowserAgent`
+- `DisableFirefoxStudies`
+- `DisableTelemetry`
+- `dom.payments.request.supported`
+- `dom.private-attribution.submission.enabled`
+- `DontCheckDefaultBrowser`
+- `extensions.formautofill.addresses.enabled`
+- `extensions.formautofill.creditCards.enabled`
+- `extensions.getAddons.showPane`
+- `extensions.htmlaboutaddons.recommendations.enabled`
+- `ExtensionSettings`
+- `ExtensionSettings.{036a55b4-5e72-4d05-a06c-cba2dfcc134a}`
+- `ExtensionSettings.{154cddeb-4c8b-4627-a478-c7e5b427ffdf}`
+- `ExtensionSettings.{de22fd49-c9ab-4359-b722-b3febdc3a0b0}`
+- `ExtensionSettings.78272b6fa58f4a1abaac99321d503a20@proton.me`
+- `ExtensionSettings.CanvasBlocker@kkapsner.de`
+- `ExtensionSettings.jid1-MnnxcxisBPnSXQ@jetpack`
+- `ExtensionSettings.uBlock0@raymondhill.net`
+- `FirefoxHome`
+- `FirefoxHome.SponsoredStories`
+- `FirefoxHome.SponsoredTopSites`
+- `FirefoxHome.Stories`
+- `FirefoxSuggest`
+- `FirefoxSuggest.ImproveSuggest`
+- `FirefoxSuggest.SponsoredSuggestions`
+- `FirefoxSuggest.WebSuggestions`
+- `identity.fxaccounts.enabled`
+- `OfferToSaveLogins`
+- `PasswordManagerEnabled`
+- `Preferences`
+- `privacy.donottrackheader.enabled`
+- `SearchEngines`
+- `SearchEngines.Add`
+- `SearchEngines.Default`
+- `signon.autofillForms`
+- `signon.rememberSignons`
+- `toolkit.coverage.endpoint.base`
+- `toolkit.coverage.opt-out`
+- `toolkit.telemetry.archive.enabled`
+- `toolkit.telemetry.bhrPing.enabled`
+- `toolkit.telemetry.coverage.opt-out`
+- `toolkit.telemetry.enabled`
+- `toolkit.telemetry.firstShutdownPing.enabled`
+- `toolkit.telemetry.newProfilePing.enabled`
+- `toolkit.telemetry.server`
+- `toolkit.telemetry.shutdownPingSender.enabled`
+- `toolkit.telemetry.unified`
+- `toolkit.telemetry.updatePing.enabled`
+- `UserMessaging`
+- `UserMessaging.ExtensionRecommendations`
+- `UserMessaging.FeatureRecommendations`
+- `UserMessaging.MoreFromMozilla`
+- `UserMessaging.SkipOnboarding`
+- `UserMessaging.UrlbarInterventions`
+
+</details>
