@@ -20,3 +20,9 @@ betterfox-user.js
 
 # Local overrides (keep example only)
 overrides/user-overrides.js
+
+# Node (local tooling only)
+node_modules/
+package.json
+package-lock.json
+
