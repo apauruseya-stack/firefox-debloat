@@ -40,7 +40,7 @@ $DefaultVersion = 'v1.1.0'
 
 # Pinned releases and their SHA-256 checksums.
 $Releases = @{
-    'v1.1.0' = 'REPLACE_WITH_SHA256'
+    'v1.1.0' = '8be484db3cc3251f2cdd121afe41303633a4ee9b6b50988d1f15a606beb6095b'
 }
 
 function Write-Info([string]$Text) { Write-Host "==> $Text" -ForegroundColor Green }
