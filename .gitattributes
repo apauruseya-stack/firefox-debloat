@@ -1,0 +1,3 @@
+*.sh eol=lf
+*.ps1 eol=crlf
+config/* eol=lf

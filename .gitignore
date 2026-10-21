@@ -1,0 +1,22 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Backups and local profile data (never commit these)
+*.bak
+*.bak-*
+user.js.bak*
+prefs.js
+profiles.ini
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Temp / downloaded upstream files
+arkenfox-user.js
+betterfox-user.js
+
+# Local overrides (keep example only)
+overrides/user-overrides.js
