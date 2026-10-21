@@ -15,12 +15,13 @@ items() {
   sed -n 's/^[[:space:]]*user_pref("\([^"]*\)".*/\1/p' "$ROOT/config/user.js"
   # Policies: top-level name and, for object policies, "Policy.Key" (except Locked).
   # In Preferences, the keys are prefs and appear under their own name.
+  # tr removes the CR a Windows jq build adds at the end of every line.
   jq -r '.policies | to_entries[] |
     .key,
     (if (.value | type) == "object" then
        (.value | keys[] | select(. != "Locked")) as $k |
        if .key == "Preferences" then $k else "\(.key).\($k)" end
-     else empty end)' "$ROOT/config/policies.json"
+     else empty end)' "$ROOT/config/policies.json" | tr -d '\r'
   printf '%s\n' "${PLATFORM_POLICIES[@]}"
 }
 

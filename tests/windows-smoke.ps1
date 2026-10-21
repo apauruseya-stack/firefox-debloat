@@ -1,4 +1,4 @@
-﻿# Smoke tests for windows\firefox-debloat.ps1. They run with -PolicyDir, -RegistryPath under HKCU
+# Smoke tests for windows\firefox-debloat.ps1. They run with -PolicyDir, -RegistryPath under HKCU
 # and temporary APPDATA/LOCALAPPDATA, without administrator rights and without Firefox installed.
 #
 # Usage: powershell -ExecutionPolicy Bypass -File tests\windows-smoke.ps1   (or pwsh -File ...)
@@ -47,6 +47,11 @@ function Read-Json([string]$Path) { Read-File $Path | ConvertFrom-Json }
 
 function Get-BlockCount([string]$Path) {
     @((Read-File $Path) -split '\r?\n' | Where-Object { $_ -ceq $MarkBegin }).Count
+}
+
+# StrictMode-safe property check.
+function Test-HasProp($Object, [string]$Name) {
+    return ($null -ne $Object.PSObject.Properties[$Name])
 }
 
 function Test-SameContent([string]$A, [string]$B) {
@@ -301,6 +306,55 @@ try {
         }
         Clear-Env
     }
+
+    Write-Output '# presets'
+    Initialize-Env
+    Invoke-Debloat @('-Preset', 'quick') | Out-Null
+    $doc = Read-Json $script:Pol
+    Assert-True 'quick keeps the telemetry policy' ($doc.policies.DisableTelemetry -eq $true)
+    Assert-True 'quick drops the password manager policy' (-not (Test-HasProp $doc.policies 'PasswordManagerEnabled'))
+    Assert-True 'quick keeps the account policy out' (-not (Test-HasProp $doc.policies 'DisableAccounts'))
+    $uj = Read-File (Join-Path $script:P1 'user.js')
+    Assert-True 'quick keeps the telemetry section' ($uj.Contains('// --- Telemetry ---'))
+    Assert-True 'quick drops the account pref' (-not $uj.Contains('identity.fxaccounts.enabled'))
+    Clear-Env
+
+    Initialize-Env
+    Invoke-Debloat @('-Preset', 'strict') | Out-Null
+    $doc = Read-Json $script:Pol
+    Assert-True 'strict locks the policies' ($doc.policies.FirefoxHome.Locked -eq $true)
+    Assert-True 'strict blocks the translation' ($doc.policies.AIControls.Translations.Value -eq 'blocked')
+    Clear-Env
+
+    Initialize-Env
+    Invoke-Debloat @('-Preset', 'keep-sync') | Out-Null
+    $doc = Read-Json $script:Pol
+    Assert-True 'keep-sync keeps the account policy out' (-not (Test-HasProp $doc.policies 'DisableAccounts'))
+    Assert-True 'keep-sync drops the account pref' (-not (Read-File (Join-Path $script:P1 'user.js')).Contains('identity.fxaccounts.enabled'))
+    Clear-Env
+
+    Write-Output '# preview'
+    Initialize-Env
+    Invoke-Debloat @('-Preview') | Out-Null
+    Assert-True 'preview writes no policies.json' (-not (Test-Path $script:Pol))
+    Assert-True 'preview writes no user.js' (-not (Test-Path (Join-Path $script:P1 'user.js')))
+    Clear-Env
+
+    Write-Output '# the ledger keeps other values'
+    Initialize-Env
+    New-Item -ItemType Directory -Path $script:PolicyDir -Force | Out-Null
+    [IO.File]::WriteAllText($script:Pol, "{`"policies`":{`"DisableAppUpdate`":true}}`n")
+    Invoke-Debloat @() | Out-Null
+    # Someone changes one of our policies after we wrote it.
+    $doc = Read-Json $script:Pol
+    $doc.policies.DisableTelemetry = $false
+    [IO.File]::WriteAllText($script:Pol, ((ConvertTo-Json -InputObject $doc -Depth 10) + "`n"))
+    Invoke-Debloat @('-Revert') | Out-Null
+    $doc = Read-Json $script:Pol
+    Assert-True 'a changed policy is left alone' ($doc.policies.DisableTelemetry -eq $false)
+    Assert-True 'the other policies are gone' (-not (Test-HasProp $doc.policies 'DisableFirefoxStudies'))
+    Assert-True 'a policy that is not ours is kept' ($doc.policies.DisableAppUpdate -eq $true)
+    Clear-Env
 } finally {
     $env:APPDATA = $savedAppData
     $env:LOCALAPPDATA = $savedLocalAppData

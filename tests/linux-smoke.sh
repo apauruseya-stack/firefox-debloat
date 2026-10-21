@@ -176,6 +176,46 @@ run --revert
 check 'old block pref removed from prefs.js' lacks "$P1/prefs.js" pref.applied.before
 teardown
 
+echo '# presets'
+setup
+run --preset quick
+check 'quick keeps the telemetry policy' jqp '.policies.DisableTelemetry == true'
+check 'quick drops the password manager policy' jqp '.policies | has("PasswordManagerEnabled") | not'
+check 'quick keeps the account policy out' jqp '.policies | has("DisableAccounts") | not'
+check 'quick keeps only the wanted sections' grep -q '// --- Telemetry ---' "$P1/user.js"
+check 'quick drops the account section' lacks "$P1/user.js" 'identity.fxaccounts.enabled'
+teardown
+setup
+run --preset strict
+check 'strict locks the policies' jqp '[.. | objects | select(has("Locked")) | .Locked] | all'
+check 'strict blocks the translation' jqp '.policies.AIControls.Translations.Value == "blocked"'
+teardown
+setup
+run --preset keep-sync
+check 'keep-sync keeps the account policy' jqp '.policies | has("DisableAccounts") | not'
+check 'keep-sync drops the account pref' lacks "$P1/user.js" identity.fxaccounts.enabled
+teardown
+
+echo '# preview'
+setup
+run --preview
+check 'preview writes no policies.json' test ! -e "$(POL)"
+check 'preview writes no user.js' test ! -e "$P1/user.js"
+teardown
+
+echo '# the ledger keeps other values'
+setup
+mkdir -p "$FIREFOX_POLICY_DIR"
+printf '{"policies":{"DisableAppUpdate":true}}\n' > "$(POL)"
+run
+# Someone changes one of our policies after we wrote it.
+jq '.policies.DisableTelemetry = false' "$(POL)" > "$(POL).new" && mv "$(POL).new" "$(POL)"
+run --revert
+check 'a changed policy is left alone' jqp '.policies.DisableTelemetry == false'
+check 'the other policies are gone' jqp '.policies | has("DisableFirefoxStudies") | not'
+check 'a policy that is not ours is kept' jqp '.policies.DisableAppUpdate == true'
+teardown
+
 echo
 if (( FAILS )); then echo "$FAILS failure(s)"; exit 1; fi
 echo 'all tests passed'

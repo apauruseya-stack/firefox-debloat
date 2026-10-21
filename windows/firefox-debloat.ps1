@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Disables telemetry, ads, recommendations, AI features and Firefox Account/Sync in Firefox.
 
@@ -43,6 +43,17 @@
     Folder to write policies.json to, instead of the Firefox distribution folder. Useful for
     testing.
 
+.PARAMETER Preset
+    Applies a preset from config/presets.json. Available: quick, recommended, strict, keep-sync.
+    Run -ListPresets to see what each one does.
+
+.PARAMETER Preview
+    Shows what would change (every policy with its risk label) and writes nothing. Never asks
+    for elevation.
+
+.PARAMETER ListPresets
+    Lists the available presets and exits.
+
 .PARAMETER Help
     Shows this help.
 
@@ -77,6 +88,9 @@ param(
     [switch]$Registry,
     [string]$PolicyDir,
     [switch]$Help,
+    [string]$Preset,
+    [switch]$Preview,
+    [switch]$ListPresets,
     [Parameter(DontShow)][string]$RegistryPath,
     [Parameter(DontShow)][string]$LogPath
 )
@@ -88,11 +102,20 @@ $OnWindows = $env:OS -eq 'Windows_NT'
 $ConfigDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'config'
 $ConfigPolicies = Join-Path $ConfigDir 'policies.json'
 $ConfigUserJs = Join-Path $ConfigDir 'user.js'
+$ConfigPresets = Join-Path $ConfigDir 'presets.json'
+$ConfigRisk = Join-Path $ConfigDir 'risk.json'
 $MarkBegin = '// >>> firefox-debloat >>>'
 $MarkEnd = '// <<< firefox-debloat <<<'
 $DefaultRegistryPath = 'HKLM:\SOFTWARE\Policies\Mozilla\Firefox'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $PrefPattern = '^\s*user_pref\("([^"]*)"'
+$SectionPattern = '^// --- (.*) ---$'
+
+# Ledger: what this tool wrote, so -Revert only touches its own values.
+# The environment variable is for tests: it points the ledger somewhere writable.
+$UserLedgerPath = if ($env:FIREFOX_DEBLOAT_USER_LEDGER) { $env:FIREFOX_DEBLOAT_USER_LEDGER }
+    elseif ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'firefox-debloat\ledger.json' }
+    else { Join-Path $env:TEMP 'firefox-debloat-user-ledger.json' }
 
 # Optional prefs that revert always clears, even if the matching flag was not used.
 $OptionalPrefs = @('browser.ai.control.translations', 'identity.fxaccounts.enabled')
@@ -239,11 +262,162 @@ function Get-BlockLine([string[]]$Lines) {
 }
 
 # ---------------------------------------------------------------------------------------------
+# Presets, risk labels and the ledger
+# ---------------------------------------------------------------------------------------------
+# Risk labels come from config/risk.json: one entry per top-level policy.
+function Get-RiskMeta {
+    $map = @{}
+    if (-not (Test-Path -LiteralPath $ConfigRisk)) { return $map }
+    try { $doc = Read-JsonFile $ConfigRisk } catch { return $map }
+    if ($null -eq $doc.PSObject.Properties['policies']) { return $map }
+    foreach ($prop in $doc.policies.PSObject.Properties) {
+        $map[$prop.Name] = $prop.Value
+    }
+    return $map
+}
+
+function Get-RiskLabel([string]$Name) {
+    $meta = Get-RiskMeta
+    if ($meta.ContainsKey($Name) -and $null -ne $meta[$Name].PSObject.Properties['risk']) {
+        return [string]$meta[$Name].risk
+    }
+    return 'unknown'
+}
+
+function Get-RiskTitle([string]$Name) {
+    $meta = Get-RiskMeta
+    if ($meta.ContainsKey($Name) -and $null -ne $meta[$Name].PSObject.Properties['title']) {
+        return [string]$meta[$Name].title
+    }
+    return $Name
+}
+
+# Prints "safe" in green, "low" in green, "medium" in yellow and "high" in red.
+function Write-RiskLabel([string]$Risk) {
+    $color = switch ($Risk) {
+        'safe' { 'Green' }
+        'low' { 'Green' }
+        'medium' { 'Yellow' }
+        'high' { 'Red' }
+        default { 'DarkGray' }
+    }
+    Write-Host "[$Risk]" -ForegroundColor $color -NoNewline
+}
+
+# The preset selected with -Preset, or $null for "everything in config/".
+function Resolve-Preset {
+    if (-not $Preset) { return $null }
+    if (-not (Test-Path -LiteralPath $ConfigPresets)) {
+        Exit-WithError "Preset file not found: $ConfigPresets"
+    }
+    $doc = Read-JsonFile $ConfigPresets
+    $presets = $doc.PSObject.Properties['presets']
+    if ($null -eq $presets) { Exit-WithError "$ConfigPresets has no 'presets' object." }
+    $prop = $presets.Value.PSObject.Properties[$Preset]
+    if ($null -eq $prop) {
+        $names = ($presets.Value.PSObject.Properties.Name | Sort-Object) -join ', '
+        Exit-WithError "Unknown preset '$Preset'. Available presets: $names"
+    }
+    $value = $prop.Value
+    # A preset can also turn on the matching flags.
+    if ($value.PSObject.Properties['lock'] -and $value.lock) { $script:Lock = $true }
+    if ($value.PSObject.Properties['block_translations'] -and $value.block_translations) {
+        $script:BlockTranslations = $true
+    }
+    if ($value.PSObject.Properties['keep_sync'] -and $value.keep_sync) { $script:KeepSync = $true }
+    return $value
+}
+
+# Keeps only the wanted sections of config/user.js. The text before the first section is kept.
+function Select-UserJsSections([string[]]$Lines, $Include) {
+    if ($null -eq $Include -or $Include -eq '*') { return $Lines }
+    $out = @()
+    $keep = $true
+    foreach ($line in $Lines) {
+        if ($line -match $SectionPattern) {
+            $keep = @($Include) -contains $Matches[1]
+        }
+        if ($keep) { $out += $line }
+    }
+    return $out
+}
+
+# Where the ledger of a target lives: next to the policies it describes, so it is written and
+# read by the same (usually elevated) step.
+function Get-LedgerPath([string]$TargetPath, [string]$Kind) {
+    if ($env:FIREFOX_DEBLOAT_LEDGER) { return $env:FIREFOX_DEBLOAT_LEDGER }
+    if ($Kind -eq 'json') {
+        $parent = Split-Path -Parent $TargetPath
+        if ($parent) { return Join-Path $parent 'firefox-debloat-ledger.json' }
+    }
+    if ($env:LOCALAPPDATA) { return Join-Path $env:LOCALAPPDATA 'firefox-debloat\ledger.json' }
+    return Join-Path $env:TEMP 'firefox-debloat-ledger.json'
+}
+
+function Read-Ledger([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return [PSCustomObject]@{ version = 1; policies = [PSCustomObject]@{}; registry = [PSCustomObject]@{}; userjs = [PSCustomObject]@{} }
+    }
+    try { return Read-JsonFile $Path } catch { return $null }
+}
+
+function Write-Ledger([string]$Path, $Ledger) {
+    $dir = Split-Path -Parent $Path
+    try {
+        if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        Write-Utf8File $Path (ConvertTo-JsonText $Ledger)
+    } catch {
+        Write-Warn "Could not write the ledger at $Path ($($_.Exception.Message))."
+    }
+}
+
+# Records a value this tool wrote, so a later -Revert knows what belongs to it.
+function Set-LedgerEntry($Container, [string]$Key, [string]$Name, $Value) {
+    if ($null -eq $Container.PSObject.Properties[$Key]) { Add-JsonMember $Container $Key ([PSCustomObject]@{}) }
+    $entry = $Container.PSObject.Properties[$Key].Value
+    if ($null -eq $entry.PSObject.Properties['values']) { Add-JsonMember $entry 'values' ([PSCustomObject]@{}) }
+    Add-JsonMember $entry.PSObject.Properties['values'].Value $Name $Value
+}
+
+# Removes a value from the ledger.
+function Remove-LedgerEntry($Container, [string]$Key, [string]$Name) {
+    if ($null -eq $Container -or $null -eq $Container.PSObject.Properties[$Key]) { return }
+    $entry = $Container.PSObject.Properties[$Key].Value
+    if ($null -eq $entry.PSObject.Properties['values']) { return }
+    $values = $entry.PSObject.Properties['values'].Value
+    if ($null -ne $values.PSObject.Properties[$Name]) { $values.PSObject.Properties.Remove($Name) }
+}
+
+function Show-PresetList {
+    if (-not (Test-Path -LiteralPath $ConfigPresets)) { Write-Warn "No presets file at $ConfigPresets."; return }
+    $doc = Read-JsonFile $ConfigPresets
+    Write-Step 'Available presets'
+    foreach ($prop in $doc.presets.PSObject.Properties) {
+        $v = $prop.Value
+        Write-RiskLabel ([string]$v.risk)
+        Write-Host "  $($prop.Name)" -ForegroundColor Cyan -NoNewline
+        Write-Host " - $($v.title): $($v.summary)"
+    }
+    Write-Host ''
+    Write-Host 'Use -Preset <name> to pick one, or -Preview to see what it would change.'
+}
+
+# ---------------------------------------------------------------------------------------------
 # config/ data with the flag transformations
 # ---------------------------------------------------------------------------------------------
 function Get-DesiredPolicy {
     $doc = Read-JsonFile $ConfigPolicies
     $policies = $doc.policies
+    $preset = Resolve-Preset
+    if ($null -ne $preset) {
+        $include = $preset.PSObject.Properties['policies']
+        if ($null -ne $include -and $include.Value -ne '*') {
+            $keep = @($include.Value)
+            foreach ($prop in @($policies.PSObject.Properties)) {
+                if ($keep -notcontains $prop.Name) { $policies.PSObject.Properties.Remove($prop.Name) }
+            }
+        }
+    }
     if ($Lock) {
         Invoke-LockWalk $doc
         $prefs = $policies.PSObject.Properties['Preferences']
@@ -265,6 +439,11 @@ function Get-DesiredPolicy {
 
 function Get-UserJsBlock {
     $config = (Read-TextLine $ConfigUserJs).Lines
+    $preset = Resolve-Preset
+    if ($null -ne $preset) {
+        $sections = $preset.PSObject.Properties['sections']
+        if ($null -ne $sections) { $config = Select-UserJsSections $config $sections.Value }
+    }
     if ($KeepSync) {
         $config = @($config | Where-Object { $_ -notmatch '^\s*user_pref\("identity\.fxaccounts\.enabled",' })
     }
@@ -382,6 +561,12 @@ function Invoke-UserApply {
     if ($running) { Write-Warn 'Firefox is running: user.js is only read on the next start.' }
     $block = Get-UserJsBlock
     $newNames = @(Get-PrefName $block)
+
+    if ($Preview) {
+        Show-UserPreview $userProfiles $block
+        return
+    }
+
     foreach ($p in $userProfiles) {
         $file = Join-Path $p 'user.js'
         $kept = @(); $eol = "`n"; $removed = @()
@@ -406,11 +591,21 @@ function Invoke-UserApply {
         }
         Write-Step "user.js updated: $p"
     }
+
+    # Ledger: remember the preferences this tool wrote, so -Revert can undo exactly this.
+    $ledger = Read-Ledger $UserLedgerPath
+    if ($null -ne $ledger) {
+        foreach ($p in $userProfiles) {
+            Set-LedgerEntry $ledger.userjs $p 'prefs' (ConvertTo-Json -InputObject $newNames -Compress)
+        }
+        Write-Ledger $UserLedgerPath $ledger
+    }
 }
 
 function Invoke-UserRevert {
     if (Test-FirefoxRunning) { Exit-WithError 'Close Firefox before reverting (it rewrites prefs.js on exit).' }
     $configNames = @(Get-PrefName (Read-TextLine $ConfigUserJs).Lines) + $OptionalPrefs
+    $ledger = Read-Ledger $UserLedgerPath
     foreach ($p in @(Get-FirefoxProfile)) {
         $file = Join-Path $p 'user.js'
         $names = $configNames
@@ -425,9 +620,21 @@ function Invoke-UserRevert {
                 Write-TextLine $file $kept $current.Eol
             }
         }
-        Clear-Pref (Join-Path $p 'prefs.js') $names
+        # Also clears what the ledger says this tool wrote, even if config/ changed since.
+        $ledgerNames = @()
+        if ($null -ne $ledger -and $null -ne $ledger.userjs.PSObject.Properties[$p]) {
+            $values = $ledger.userjs.PSObject.Properties[$p].Value.PSObject.Properties['values']
+            if ($null -ne $values -and $null -ne $values.Value.PSObject.Properties['prefs']) {
+                try { $ledgerNames = @($values.Value.PSObject.Properties['prefs'].Value | ConvertFrom-Json) }
+                catch { $ledgerNames = @() }
+            }
+        }
+        $names += $ledgerNames
+        Clear-Pref (Join-Path $p 'prefs.js') ($names | Sort-Object -Unique)
         Write-Step "Reverted: $p"
+        if ($null -ne $ledger) { Remove-LedgerEntry $ledger.userjs $p 'prefs' }
     }
+    if ($null -ne $ledger) { Write-Ledger $UserLedgerPath $ledger }
     Write-Warn 'The block prefs were reset to default, including any you had changed by hand before.'
 }
 
@@ -523,6 +730,8 @@ function Invoke-ElevatedSystemStep($Target) {
     if ($BlockTranslations) { $arguments += '-BlockTranslations' }
     if ($KeepSync) { $arguments += '-KeepSync' }
     if ($Revert) { $arguments += '-Revert' }
+    if ($Preset) { $arguments += @('-Preset', "`"$Preset`"") }
+    if ($Preview) { $arguments += '-Preview' }
 
     Write-Step 'Requesting elevation (UAC) to write the policies...'
     $hostExe = (Get-Process -Id $PID).Path
@@ -543,6 +752,15 @@ function Invoke-SystemStep {
     if ($null -eq $target) {
         Write-Warn ('Firefox installation not found; policies step skipped. Use -PolicyDir to point ' +
             'to the distribution folder or -Registry to write to the registry.')
+        return
+    }
+    if ($Preview) {
+        # A preview only reads, so it never asks for elevation.
+        if ($target.Kind -eq 'json') {
+            Show-PolicyPreview (Join-Path $target.Path 'policies.json') (Get-DesiredPolicy)
+        } else {
+            Show-RegistryPreview $target.Path (Get-DesiredPolicy)
+        }
         return
     }
     if (Test-NeedsElevation $target) {
@@ -573,11 +791,65 @@ function Write-RegistryConflict($Desired) {
     }
 }
 
+# Shows what the policies step would change, without writing anything.
+function Show-PolicyPreview([string]$File, $Desired) {
+    Write-Step "Preview: policies at $File"
+    $current = $null
+    if (Test-Path -LiteralPath $File) {
+        try { $current = Read-JsonFile $File } catch { $current = $null }
+    }
+    foreach ($prop in $Desired.policies.PSObject.Properties) {
+        $status = 'add'
+        if ($null -ne $current) {
+            $cur = $current.PSObject.Properties['policies']
+            if ($null -ne $cur) {
+                $existing = $cur.Value.PSObject.Properties[$prop.Name]
+                if ($null -ne $existing) {
+                    $same = ((ConvertTo-Json -InputObject $existing.Value -Depth 10 -Compress) -eq
+                        (ConvertTo-Json -InputObject $prop.Value -Depth 10 -Compress))
+                    $status = if ($same) { 'same' } else { 'change' }
+                }
+            }
+        }
+        Write-RiskLabel (Get-RiskLabel $prop.Name)
+        Write-Host ("  {0,-8}" -f $status) -NoNewline
+        Write-Host ("{0,-40}" -f $prop.Name) -NoNewline
+        Write-Host (Get-RiskTitle $prop.Name) -ForegroundColor DarkGray
+    }
+    Write-Host ''
+    Write-Host 'Nothing was written. Run without -Preview to apply.' -ForegroundColor DarkGray
+}
+
+# Shows what the user.js step would change, without writing anything.
+function Show-UserPreview([string[]]$Profiles, [string[]]$Block) {
+    $new = @(Get-PrefName $Block)
+    Write-Step "Preview: $($new.Count) preferences in $($Profiles.Count) profile(s)"
+    foreach ($p in $Profiles) {
+        $file = Join-Path $p 'user.js'
+        $existing = @()
+        if (Test-Path -LiteralPath $file) {
+            $existing = @(Get-PrefName @(Get-BlockLine (Read-TextLine $file).Lines))
+        }
+        $added = @($new | Where-Object { $existing -notcontains $_ })
+        $removed = @($existing | Where-Object { $new -notcontains $_ })
+        Write-Host "  $p" -ForegroundColor Cyan
+        Write-Host "    added:   $($added.Count) preference(s)"
+        Write-Host "    removed: $($removed.Count) preference(s)"
+    }
+    Write-Host ''
+    Write-Host 'Nothing was written. Run without -Preview to apply.' -ForegroundColor DarkGray
+}
+
 function Invoke-JsonApply([string]$Dir) {
     $file = Join-Path $Dir 'policies.json'
     $orig = "$file.debloat-orig"   # copy of the original; empty file = there was none
     $desired = Get-DesiredPolicy
     Write-RegistryConflict $desired
+
+    if ($Preview) {
+        Show-PolicyPreview $file $desired
+        return
+    }
 
     # Saves the original state only on the first run, so -Revert knows what to restore.
     if (-not (Test-Path -LiteralPath $orig)) {
@@ -604,22 +876,108 @@ function Invoke-JsonApply([string]$Dir) {
         }
     }
     Write-Utf8File $file (ConvertTo-JsonText $result)
+
+    # Ledger: remember what this tool wrote, so -Revert can undo exactly this.
+    $ledger = Read-Ledger (Get-LedgerPath $Dir 'json')
+    if ($null -ne $ledger) {
+        foreach ($prop in $desired.policies.PSObject.Properties) {
+            $json = ConvertTo-Json -InputObject $prop.Value -Depth 10 -Compress
+            Set-LedgerEntry $ledger.policies $file $prop.Name $json
+        }
+        Write-Ledger (Get-LedgerPath $Dir 'json') $ledger
+    }
+
     Write-Step "Policies installed at $file"
 }
 
 function Invoke-JsonRevert([string]$Dir) {
     $file = Join-Path $Dir 'policies.json'
     $orig = "$file.debloat-orig"
-    if (-not (Test-Path -LiteralPath $orig)) {
+    $ledger = Read-Ledger (Get-LedgerPath $Dir 'json')
+    $mine = @()
+    if ($null -ne $ledger -and $null -ne $ledger.policies.PSObject.Properties[$file]) {
+        $values = $ledger.policies.PSObject.Properties[$file].Value.PSObject.Properties['values']
+        if ($null -ne $values) { $mine = @($values.Value.PSObject.Properties | ForEach-Object { $_.Name }) }
+    }
+    if (-not (Test-Path -LiteralPath $orig) -and $mine.Count -eq 0) {
         Write-Warn "Nothing to revert in $Dir (the script was not applied there)."
         return
     }
-    if ((Get-Item -LiteralPath $orig).Length -gt 0) {
-        Move-Item -LiteralPath $orig -Destination $file -Force
-        Write-Step 'Original policies.json restored.'
+
+    $current = $null
+    if (Test-Path -LiteralPath $file) {
+        try { $current = Read-JsonFile $file } catch { $current = $null }
+    }
+
+    # Looks for values that changed after we wrote them: those must not be touched.
+    $kept = @()
+    $changed = $false
+    if ($null -ne $current -and $mine.Count -gt 0) {
+        $values = $ledger.policies.PSObject.Properties[$file].Value.PSObject.Properties['values'].Value
+        $currentPolicies = $current.PSObject.Properties['policies']
+        if ($null -ne $currentPolicies) {
+            foreach ($name in $mine) {
+                $prop = $currentPolicies.Value.PSObject.Properties[$name]
+                if ($null -eq $prop) { continue }
+                $written = [string]$values.PSObject.Properties[$name].Value
+                $now = ConvertTo-Json -InputObject $prop.Value -Depth 10 -Compress
+                if ($now -ne $written) { $changed = $true; $kept += $name }
+            }
+        }
+    }
+
+    if (-not $changed) {
+        # Nothing changed behind our back: the original file is restored byte for byte.
+        if ((Get-Item -LiteralPath $orig).Length -gt 0) {
+            Move-Item -LiteralPath $orig -Destination $file -Force
+            Write-Step 'Original policies.json restored.'
+        } else {
+            Remove-Item -LiteralPath $file, $orig -Force -ErrorAction SilentlyContinue
+            Write-Step 'policies.json removed (it did not exist before).'
+        }
     } else {
-        Remove-Item -LiteralPath $file, $orig -Force -ErrorAction SilentlyContinue
-        Write-Step 'policies.json removed (it did not exist before).'
+        Write-Warn ('These policies changed after we wrote them, so they were left alone: ' +
+            ($kept -join ', '))
+        # Only the values this tool wrote are removed.
+        if ($null -ne $current -and $mine.Count -gt 0) {
+            $values = $ledger.policies.PSObject.Properties[$file].Value.PSObject.Properties['values'].Value
+            $currentPolicies = $current.PSObject.Properties['policies']
+            if ($null -ne $currentPolicies) {
+                foreach ($name in $mine) {
+                    $prop = $currentPolicies.Value.PSObject.Properties[$name]
+                    if ($null -eq $prop) { continue }
+                    $written = [string]$values.PSObject.Properties[$name].Value
+                    $now = ConvertTo-Json -InputObject $prop.Value -Depth 10 -Compress
+                    if ($now -eq $written) { $currentPolicies.Value.PSObject.Properties.Remove($name) }
+                }
+            }
+        }
+        # Anything that existed before we first wrote is put back.
+        $result = $current
+        if ($null -ne $result -and (Get-Item -LiteralPath $orig).Length -gt 0) {
+            try {
+                $base = Read-JsonFile $orig
+                if (Test-JsonObject $base) { $result = Merge-JsonObject $base $result }
+            } catch { }
+        }
+        $left = 0
+        if ($null -ne $result) {
+            $resultPolicies = $result.PSObject.Properties['policies']
+            if ($null -ne $resultPolicies) { $left = @($resultPolicies.Value.PSObject.Properties).Count }
+        }
+        if ($left -gt 0) {
+            Write-Utf8File $file (ConvertTo-JsonText $result)
+            Write-Step 'Original policies.json restored (only the values this tool wrote were removed).'
+        } else {
+            Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue
+            Write-Step 'policies.json removed (it did not exist before).'
+        }
+        Remove-Item -LiteralPath $orig -Force -ErrorAction SilentlyContinue
+    }
+
+    if ($null -ne $ledger) {
+        foreach ($name in $mine) { Remove-LedgerEntry $ledger.policies $file $name }
+        Write-Ledger (Get-LedgerPath $Dir 'json') $ledger
     }
 }
 
@@ -651,9 +1009,63 @@ function Restore-RegistryKey([string]$KeyPath, [string]$Backup) {
     if ((Get-Item -LiteralPath $Backup).Length -gt 0) { Invoke-RegExe @('import', $Backup) }
 }
 
+# Reads the sections of a .reg export produced by "reg export".
+function Read-RegBackup([string]$Path) {
+    $sections = @()
+    $current = $null
+    $lines = @()
+    foreach ($line in (Read-TextLine $Path).Lines) {
+        $t = $line.Trim()
+        if ($t -match '^\[(.*)\]$') {
+            if ($null -ne $current) { $sections += @{ Path = $current; Lines = $lines } }
+            $current = $Matches[1]
+            $lines = @()
+            continue
+        }
+        if ($null -ne $current) { $lines += $line }
+    }
+    if ($null -ne $current) { $sections += @{ Path = $current; Lines = $lines } }
+    return $sections
+}
+
+# Shows what the registry step would change, without writing anything.
+function Show-RegistryPreview([string]$KeyPath, $Desired) {
+    Write-Step "Preview: policies at $KeyPath"
+    $current = @{}
+    if (Test-Path -LiteralPath $KeyPath) {
+        $item = Get-ItemProperty -LiteralPath $KeyPath -ErrorAction SilentlyContinue
+        if ($null -ne $item) {
+            foreach ($name in $item.PSObject.Properties.Name) {
+                if ($name -notmatch '^PS') { $current[$name] = $item.PSObject.Properties[$name].Value }
+            }
+        }
+    }
+    foreach ($prop in $Desired.policies.PSObject.Properties) {
+        $status = 'add'
+        if ($current.ContainsKey($prop.Name)) {
+            $now = ConvertTo-Json -InputObject $current[$prop.Name] -Depth 10 -Compress
+            $want = ConvertTo-Json -InputObject $prop.Value -Depth 10 -Compress
+            $status = if ($now -eq $want) { 'same' } else { 'change' }
+        }
+        Write-RiskLabel (Get-RiskLabel $prop.Name)
+        Write-Host ("  {0,-8}" -f $status) -NoNewline
+        Write-Host ("{0,-40}" -f $prop.Name) -NoNewline
+        Write-Host (Get-RiskTitle $prop.Name) -ForegroundColor DarkGray
+    }
+    Write-Host ''
+    Write-Host 'Nothing was written. Run without -Preview to apply.' -ForegroundColor DarkGray
+}
+
 function Invoke-RegistryApply([string]$KeyPath) {
     $backup = Get-RegistryBackupPath $KeyPath
     $native = ConvertTo-RegExePath $KeyPath
+    $desired = Get-DesiredPolicy
+
+    if ($Preview) {
+        Show-RegistryPreview $KeyPath $desired
+        return
+    }
+
     if (-not (Test-Path -LiteralPath $backup)) {
         New-Item -ItemType Directory -Path (Split-Path -Parent $backup) -Force | Out-Null
         if (Test-Path -LiteralPath $KeyPath) {
@@ -668,7 +1080,7 @@ function Invoke-RegistryApply([string]$KeyPath) {
     if (-not (Test-Path -LiteralPath $KeyPath)) { New-Item -Path $KeyPath -Force | Out-Null }
 
     $replaced = @()
-    foreach ($prop in (Get-DesiredPolicy).policies.PSObject.Properties) {
+    foreach ($prop in $desired.policies.PSObject.Properties) {
         $sub = Join-Path $KeyPath $prop.Name
         if (Test-Path -LiteralPath $sub) {
             Remove-Item -LiteralPath $sub -Recurse -Force
@@ -684,29 +1096,125 @@ function Invoke-RegistryApply([string]$KeyPath) {
         Write-Warn ('Policies that already existed in the registry were replaced (-Revert restores them): ' +
             ($replaced -join ', '))
     }
+
+    # Ledger: remember what this tool wrote, so -Revert can undo exactly this.
+    $ledger = Read-Ledger (Get-LedgerPath $KeyPath 'registry')
+    if ($null -ne $ledger) {
+        foreach ($prop in $desired.policies.PSObject.Properties) {
+            $json = ConvertTo-Json -InputObject $prop.Value -Depth 10 -Compress
+            Set-LedgerEntry $ledger.registry $KeyPath $prop.Name $json
+        }
+        Write-Ledger (Get-LedgerPath $KeyPath 'registry') $ledger
+    }
+
     Write-Warn 'Registry policies apply to every Firefox on this machine, not just the Store one.'
     Write-Step "Policies written to $KeyPath (backup at $backup)"
 }
 
 function Invoke-RegistryRevert([string]$KeyPath) {
     $backup = Get-RegistryBackupPath $KeyPath
-    if (-not (Test-Path -LiteralPath $backup)) {
+    $ledger = Read-Ledger (Get-LedgerPath $KeyPath 'registry')
+    $mine = @()
+    if ($null -ne $ledger -and $null -ne $ledger.registry.PSObject.Properties[$KeyPath]) {
+        $values = $ledger.registry.PSObject.Properties[$KeyPath].Value.PSObject.Properties['values']
+        if ($null -ne $values) { $mine = @($values.Value.PSObject.Properties | ForEach-Object { $_.Name }) }
+    }
+    if (-not (Test-Path -LiteralPath $backup) -and $mine.Count -eq 0) {
         Write-Warn "Nothing to revert in $KeyPath (the script was not applied there)."
         return
     }
-    $existed = (Get-Item -LiteralPath $backup).Length -gt 0
-    Restore-RegistryKey $KeyPath $backup
-    Remove-Item -LiteralPath $backup -Force
-    if ($existed) {
-        Write-Step "Key $KeyPath restored."
-    } else {
-        # Removes the empty Mozilla key the script created.
+
+    $sections = @()
+    $existed = $false
+    if (Test-Path -LiteralPath $backup) {
+        $sections = @(Read-RegBackup $backup)
+        $existed = (Get-Item -LiteralPath $backup).Length -gt 0
+    }
+
+    # Removes only the values this tool wrote, and only if nobody changed them since.
+    $kept = @()
+    $removed = @()
+    if ($mine.Count -gt 0 -and (Test-Path -LiteralPath $KeyPath)) {
+        $values = $ledger.registry.PSObject.Properties[$KeyPath].Value.PSObject.Properties['values'].Value
+        foreach ($name in $mine) {
+            $item = Get-ItemProperty -LiteralPath $KeyPath -Name $name -ErrorAction SilentlyContinue
+            if ($null -eq $item) { continue }
+            # A policy is stored as a REG_MULTI_SZ with one element holding the JSON, which is
+            # exactly what the ledger recorded.
+            $raw = $item.$name
+            if ($raw -is [array]) { $raw = $raw -join '' } else { $raw = [string]$raw }
+            if ($raw -eq [string]$values.PSObject.Properties[$name].Value) {
+                Remove-ItemProperty -LiteralPath $KeyPath -Name $name -Force -ErrorAction SilentlyContinue
+                $removed += $name
+            } else {
+                $kept += $name
+            }
+        }
+    }
+    if ($removed.Count -gt 0) { Write-Step "Registry values removed: $($removed -join ', ')" }
+    if ($kept.Count -gt 0) {
+        Write-Warn ('These registry values changed after we wrote them, so they were left alone: ' +
+            ($kept -join ', '))
+    }
+
+    # Puts back the values and subkeys that existed before, if they are missing now.
+    $restored = @()
+    if ($sections.Count -gt 0 -and (Test-Path -LiteralPath $KeyPath)) {
+        $root = $sections[0]
+        $item = Get-ItemProperty -LiteralPath $KeyPath -ErrorAction SilentlyContinue
+        $present = @()
+        if ($null -ne $item) { $present = @($item.PSObject.Properties.Name) }
+        $import = @('Windows Registry Editor Version 5.00', '')
+        $rootLines = @()
+        foreach ($line in $root.Lines) {
+            if ($line -match '^"([^"]*)"=') {
+                if ($present -notcontains $Matches[1]) { $rootLines += $line; $restored += $Matches[1] }
+            }
+        }
+        if ($rootLines.Count -gt 0) { $import += $root.Lines[0]; $import += $rootLines; $import += '' }
+        # Subkeys that are gone are restored as they were.
+        for ($i = 1; $i -lt $sections.Count; $i++) {
+            $sec = $sections[$i]
+            $name = Split-Path -Leaf $sec.Path
+            if (Test-Path -LiteralPath (Join-Path $KeyPath $name)) { continue }
+            $import += "[$($sec.Path)]"
+            $import += $sec.Lines
+            $import += ''
+            $restored += "$name (subkey)"
+        }
+        if ($import.Count -gt 2) {
+            $tmp = [IO.Path]::GetTempFileName()
+            Write-Utf8File $tmp (($import -join "`r`n") + "`r`n")
+            Invoke-RegExe @('import', $tmp)
+            Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+        }
+    }
+    if ($restored.Count -gt 0) { Write-Step "Registry values restored: $($restored -join ', ')" }
+
+    Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+
+    if (-not $existed) {
+        # The key did not exist before: remove it when nothing is left in it.
+        $item = Get-Item -LiteralPath $KeyPath -ErrorAction SilentlyContinue
+        $empty = $true
+        if ($null -ne $item) {
+            $empty = (@($item.GetValueNames()).Count -eq 0) -and (@($item.GetSubKeyNames()).Count -eq 0)
+        }
+        if ($empty) { Remove-Item -LiteralPath $KeyPath -Recurse -Force -ErrorAction SilentlyContinue }
+        # Removes the empty parent key the script created.
         $parent = Split-Path -Parent $KeyPath
         if ((Test-Path -LiteralPath $parent) -and @(Get-ChildItem -LiteralPath $parent).Count -eq 0 -and
             @((Get-Item -LiteralPath $parent).GetValueNames()).Count -eq 0) {
             Remove-Item -LiteralPath $parent -Force
         }
         Write-Step "Key $KeyPath removed (it did not exist before)."
+    } else {
+        Write-Step "Key $KeyPath reverted to its original values."
+    }
+
+    if ($null -ne $ledger) {
+        foreach ($name in $mine) { Remove-LedgerEntry $ledger.registry $KeyPath $name }
+        Write-Ledger (Get-LedgerPath $KeyPath 'registry') $ledger
     }
 }
 
@@ -715,6 +1223,11 @@ function Invoke-RegistryRevert([string]$KeyPath) {
 # ---------------------------------------------------------------------------------------------
 if ($Help) {
     Get-Help -Detailed $PSCommandPath
+    exit 0
+}
+
+if ($ListPresets) {
+    Show-PresetList
     exit 0
 }
 

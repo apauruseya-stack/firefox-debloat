@@ -1,0 +1,84 @@
+{
+  "policies": {
+    "DisableTelemetry": {
+      "risk": "safe",
+      "title": "Turn off telemetry",
+      "what": "No technical or usage data is sent to Mozilla. The data collection options in settings become unavailable."
+    },
+    "DisableFirefoxStudies": {
+      "risk": "safe",
+      "title": "Turn off studies and experiments",
+      "what": "Mozilla can no longer enroll the browser in studies (Shield) or push remote pref changes (Normandy)."
+    },
+    "DontCheckDefaultBrowser": {
+      "risk": "safe",
+      "title": "Stop asking to be the default browser",
+      "what": "Firefox no longer asks at startup. You can still set it in settings."
+    },
+    "DisableAccounts": {
+      "risk": "medium",
+      "title": "Turn off Firefox Account and Sync",
+      "what": "You cannot sign in to a Firefox Account. Bookmarks, passwords and tabs stop syncing. Local data stays in the profile."
+    },
+    "PasswordManagerEnabled": {
+      "risk": "medium",
+      "title": "Turn off the built-in password manager",
+      "what": "Firefox stops storing and offering saved logins. Proton Pass is auto-installed as the replacement."
+    },
+    "OfferToSaveLogins": {
+      "risk": "safe",
+      "title": "Stop offering to save logins",
+      "what": "Firefox does not ask whether to remember a password."
+    },
+    "AutofillAddressEnabled": {
+      "risk": "medium",
+      "title": "Turn off address autofill",
+      "what": "Forms no longer fill your address automatically. You type it every time."
+    },
+    "AutofillCreditCardEnabled": {
+      "risk": "medium",
+      "title": "Turn off credit card autofill",
+      "what": "Payment forms no longer fill your card details automatically."
+    },
+    "FirefoxHome": {
+      "risk": "safe",
+      "title": "Remove sponsored content and stories from the new tab",
+      "what": "Sponsored shortcuts, recommended stories and sponsored stories are gone from Firefox Home."
+    },
+    "FirefoxSuggest": {
+      "risk": "safe",
+      "title": "Turn off Firefox Suggest",
+      "what": "Address bar suggestions from Mozilla are gone. What you type is not sent to Mozilla for suggestions."
+    },
+    "UserMessaging": {
+      "risk": "safe",
+      "title": "Remove Mozilla messages and recommendations",
+      "what": "Extension and feature suggestions, address bar interventions, the onboarding screen and the More from Mozilla section are gone."
+    },
+    "AIControls": {
+      "risk": "medium",
+      "title": "Block AI features",
+      "what": "Sidebar chatbot, link previews, smart tab groups, PDF alt text, Smart Window and speech recognition are blocked. Local translation stays available unless it is blocked too."
+    },
+    "SearchEngines": {
+      "risk": "medium",
+      "title": "Set Brave Search as the default engine",
+      "what": "Searches in the address bar and search box go to Brave Search instead of the built-in default."
+    },
+    "ExtensionSettings": {
+      "risk": "medium",
+      "title": "Auto-install the curated extension set",
+      "what": "uBlock Origin, Proton Pass, Privacy Badger, TWP, PopUpOFF, Popup Blocker and CanvasBlocker are installed and cannot be removed by accident."
+    },
+    "Preferences": {
+      "risk": "safe",
+      "title": "Apply individual preferences",
+      "what": "Ad attribution submission and trending searches in the address bar are turned off."
+    },
+    "DisableDefaultBrowserAgent": {
+      "risk": "safe",
+      "title": "Turn off the Windows default browser agent",
+      "what": "The background agent that reports your default browser stops running. Windows only."
+    }
+  }
+}

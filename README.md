@@ -100,6 +100,14 @@ The debloat script is **idempotent** and leaves everything outside its managed b
 
 ### 🪟 Windows
 
+**One-line install** (downloads, verifies the SHA-256, runs, cleans up):
+
+```powershell
+irm https://raw.githubusercontent.com/apauruseya-stack/firefox-hardened/main/install/install.ps1 | iex
+```
+
+**Or from the source** (full control, easier to read first):
+
 ```powershell
 # 1. Clone
 git clone https://github.com/apauruseya-stack/firefox-hardened.git
@@ -111,16 +119,21 @@ winget install --id Mozilla.Firefox --silent --accept-package-agreements --accep
 # 3. Open Firefox once, then close it (this creates your profile)
 & "C:\Program Files\Mozilla Firefox\firefox.exe"
 
-# 4. Apply the debloat layer (UAC prompt appears for the policies step)
-powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1
-#    Want to keep Sync?  add:  -KeepSync
+# 4. See what would change, without writing anything
+powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1 -Preview
 
-# 5. Layer Arkenfox + Betterfox on top
+# 5. Apply the debloat layer (UAC prompt appears for the policies step)
+powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1
+#    Want to keep Sync?        add:  -KeepSync
+#    Want a lighter profile?   add:  -Preset quick
+#    See the presets:          -ListPresets
+
+# 6. Layer Arkenfox + Betterfox on top
 powershell -ExecutionPolicy Bypass -File .\scripts\merge-arkenfox-betterfox.ps1
 
-# 6. (Optional) personal overrides, see "Customizing" below
+# 7. (Optional) personal overrides, see "Customizing" below
 
-# 7. Restart Firefox, then verify at about:policies and about:config
+# 8. Restart Firefox, then verify at about:policies and about:config
 ```
 
 <details>
@@ -137,11 +150,21 @@ Get-ChildItem -Recurse | Unblock-File
 ```bash
 git clone https://github.com/apauruseya-stack/firefox-hardened.git
 cd firefox-hardened
+
+# See what would change, without writing anything
+./linux/firefox-debloat.sh --preview
+
+# Apply the debloat layer (asks for sudo when it writes policies.json)
 ./linux/firefox-debloat.sh
-# then append the Arkenfox + Betterfox user.js content and your overrides to your profile's user.js
+#   --preset quick     a lighter profile
+#   --list-presets     what the presets do
+#   --keep-sync        keep Firefox Account and Sync
+
+# Layer Arkenfox + Betterfox on top
+./scripts/merge-arkenfox-betterfox.sh
 ```
 
-> 🤝 The Linux merge step isn't scripted yet. **PRs welcome!**
+Both scripts are idempotent and reversible (`--revert`).
 
 ### 🍎 macOS (untested)
 
@@ -295,11 +318,62 @@ How it compares with **stock Firefox** and **LibreWolf**:
 | I want to... | Do this |
 |---|---|
 | Change policies or debloat prefs | Edit `config/policies.json` / `config/user.js`, then re-run the script |
+| Use a lighter profile | `-Preset quick` / `--preset quick` (see the presets below) |
+| See what a preset does | `-ListPresets` / `--list-presets` |
+| Check what would change, without writing | `-Preview` / `--preview` |
 | Keep Firefox Sync | `-KeepSync` / `--keep-sync` |
 | Lock policies (greyed out in the UI) | `-Lock` / `--lock` |
 | Block local translation too | `-BlockTranslations` / `--block-translations` |
 | Tweak Arkenfox | Edit prefs in its `user.js` (look for `[SETUP-*]` tags). RFP is off by default; enable it in overrides |
 | Add personal overrides | Copy `overrides/user-overrides.example.js`, edit it, and **append it to the end of your profile's `user.js`** (it is not auto-loaded) |
+| Change a risk label | Edit `config/risk.json` (labels only, no behavior change) |
+
+---
+
+## 🧰 Presets, preview and the ledger
+
+### Presets
+
+A preset is a named subset of `config/`. List them with `-ListPresets` (Windows) or `--list-presets` (Linux).
+
+| Preset | What it does | Risk |
+|---|---|:---:|
+| **quick** | The loudest extras only: telemetry, studies, crash reports, sponsored content and AI features. Keeps your account, Sync, password manager and search engine. | low |
+| **recommended** | Everything in `config/`: telemetry, ads, AI, suggestions and Mozilla messages off, Brave Search default, extensions auto-installed, built-in password manager and Firefox Account/Sync disabled. | low |
+| **strict** | `recommended` plus every policy locked (greyed out in the UI) and local page translation blocked as well. | medium |
+| **keep-sync** | `recommended`, but Firefox Account and Sync stay enabled so bookmarks, passwords and tabs keep syncing. | low |
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1 -Preset quick
+```
+
+### Preview and risk labels
+
+`-Preview` shows what would change and writes nothing. It never asks for elevation.
+
+```
+==> Preview: policies at C:\Program Files\Mozilla Firefox\distribution\policies.json
+[safe]  change  DisableTelemetry                        Turn off telemetry
+[medium] add     DisableAccounts                         Turn off Firefox Account and Sync
+[safe]  same    FirefoxHome                             Remove sponsored content and stories from the new tab
+```
+
+Every policy has a risk label in `config/risk.json`:
+
+| Label | Meaning |
+|:---:|---|
+| **safe** | Nothing you use is affected. |
+| **low** | A small convenience is lost. |
+| **medium** | You will notice the change: no Sync, no password prompts, AI features gone. |
+| **high** | Features break or data is deleted. |
+
+### The ledger
+
+Every run records **what the tool wrote** in a small JSON ledger (next to the policies, and one for the profiles). `-Revert` uses it to undo exactly its own values:
+
+- a value you changed yourself after the run is **left alone** and reported,
+- a policy that was never ours (from your organization or another tool) is **kept**,
+- everything else the tool wrote is removed, and the original file is restored byte for byte.
 
 ---
 
@@ -327,7 +401,14 @@ How it compares with **stock Firefox** and **LibreWolf**:
 powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1 -Revert
 ```
 
-Then restore your profile's `user.js` from the backup the merge script created (`user.js.bak-<timestamp>` in the profile folder), or delete `user.js` entirely to return to Firefox defaults. **Policies revert automatically** via the `.debloat-orig` backup.
+```bash
+# Linux
+./linux/firefox-debloat.sh --revert
+```
+
+The **ledger** decides what is undone: only the values this tool wrote are removed, and the original `policies.json` is restored byte for byte. A value someone else changed after the run is left alone and reported, and a policy that was never ours (from your organization, for example) is kept.
+
+Then restore your profile's `user.js` from the backup the merge script created (`user.js.bak-<timestamp>` in the profile folder), or delete `user.js` entirely to return to Firefox defaults.
 
 ---
 
@@ -390,9 +471,10 @@ Remove or comment out the two `privacy.resistFingerprinting*` lines in your over
 
 ## 🔧 Maintenance
 
-- 🔄 Arkenfox and Betterfox are static `user.js` files. **Re-run the merge script** to pull the latest versions when Firefox updates.
+- 🔄 Arkenfox and Betterfox are **pinned to a specific commit** in the merge scripts, and the download is checked against a **SHA-256 checksum**. The script aborts if the checksum does not match. A scheduled workflow opens an issue when upstream publishes a new version, so the pin is refreshed on purpose.
 - 🧽 Arkenfox recommends running `prefsCleaner` after major Firefox updates to reset deprecated prefs.
 - 🔁 The debloat script is idempotent. Re-running it regenerates policies from the original plus `config/`.
+- 🔐 The one-line installer downloads a release asset and verifies its SHA-256 before running anything.
 
 ---
 

@@ -1,0 +1,48 @@
+{
+  "presets": {
+    "quick": {
+      "title": "Quick Debloat",
+      "summary": "Turns off the loudest extras only: telemetry, studies, crash reports, sponsored content and AI features. Keeps your account, Sync, password manager and search engine.",
+      "risk": "low",
+      "policies": [
+        "DisableTelemetry",
+        "DisableFirefoxStudies",
+        "FirefoxHome",
+        "FirefoxSuggest",
+        "UserMessaging",
+        "AIControls"
+      ],
+      "sections": [
+        "Telemetry",
+        "Studies",
+        "Crash reports",
+        "Ads and sponsored content",
+        "AI"
+      ]
+    },
+    "recommended": {
+      "title": "Recommended",
+      "summary": "Everything in config/: telemetry, ads, AI, suggestions and Mozilla messages off, Brave Search as default, curated extensions auto-installed, built-in password manager and Firefox Account/Sync disabled.",
+      "risk": "low",
+      "policies": "*",
+      "sections": "*"
+    },
+    "strict": {
+      "title": "Strict",
+      "summary": "Recommended plus every policy locked (greyed out in the UI) and local page translation blocked as well.",
+      "risk": "medium",
+      "policies": "*",
+      "sections": "*",
+      "lock": true,
+      "block_translations": true
+    },
+    "keep-sync": {
+      "title": "Keep Sync",
+      "summary": "Recommended, but Firefox Account and Sync stay enabled so bookmarks, passwords and tabs keep syncing. Everything else is off.",
+      "risk": "low",
+      "policies": "*",
+      "sections": "*",
+      "keep_sync": true
+    }
+  }
+}

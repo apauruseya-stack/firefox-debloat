@@ -1,3 +1,8 @@
 *.sh eol=lf
 *.ps1 eol=crlf
 config/* eol=lf
+
+# Files that are not part of a release asset (built with "git archive").
+install/ export-ignore
+.github/ export-ignore
+tests/ export-ignore
