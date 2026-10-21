@@ -1,0 +1,45 @@
+name: Upstream update check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # every Monday 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare pinned commits to upstream
+        id: compare
+        run: |
+          set -euo pipefail
+          pinned_ark=$(grep -oP 'ARKENFOX_COMMIT="\K[^"]+' scripts/merge-arkenfox-betterfox.sh)
+          pinned_bf=$(grep -oP 'BETTERFOX_COMMIT="\K[^"]+' scripts/merge-arkenfox-betterfox.sh)
+          latest_ark=$(curl -fsSL https://api.github.com/repos/arkenfox/user.js/commits/master | jq -r .sha)
+          latest_bf=$(curl -fsSL https://api.github.com/repos/yokoffing/Betterfox/commits/main | jq -r .sha)
+          echo "pinned_ark=$pinned_ark" >> $GITHUB_OUTPUT
+          echo "pinned_bf=$pinned_bf" >> $GITHUB_OUTPUT
+          echo "latest_ark=$latest_ark" >> $GITHUB_OUTPUT
+          echo "latest_bf=$latest_bf" >> $GITHUB_OUTPUT
+          if [[ "$pinned_ark" != "$latest_ark" || "$pinned_bf" != "$latest_bf" ]]; then
+            echo "update_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "update_available=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Open issue if an update is available
+        if: steps.compare.outputs.update_available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body="Upstream versions changed. Review and update the pinned commits and checksums in \`scripts/merge-arkenfox-betterfox.sh\` and \`.ps1\`.
+
+          - Arkenfox: \`${{ steps.compare.outputs.pinned_ark }}\` -> \`${{ steps.compare.outputs.latest_ark }}\`
+          - Betterfox: \`${{ steps.compare.outputs.pinned_bf }}\` -> \`${{ steps.compare.outputs.latest_bf }}\`
+
+          Download the new \`user.js\` files, recompute SHA-256, update both scripts, then run the tests."
+          gh issue create --title "Upstream update available (Arkenfox/Betterfox)" --body "$body" || true

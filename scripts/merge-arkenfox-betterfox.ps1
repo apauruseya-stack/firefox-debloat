@@ -25,10 +25,16 @@
     .\scripts\merge-arkenfox-betterfox.ps1
 #>
 [CmdletBinding()]
+# Pinned upstream versions (update these deliberately, then refresh the checksums):
+$ArkenfoxCommit = 'fb56d7bb4ed07898c9d94ca7ecc89697dd88cc3c'
+$ArkenfoxSha256 = 'E4AB33C6914899175CF7035E0E57A2D7F08AC887D8F957F1199E7E49BBE7E33E'
+$BetterfoxCommit = '067172a4b0dc90e78e5b8b94d9abfe6430c6a7be'
+$BetterfoxSha256 = '38A971C7B15225987BAF26DD98B884BFB114531B4F6A8F2E0E281FB0352D5240'
+
 param(
     [string]$Profile,
-    [string]$ArkenfoxUrl = 'https://raw.githubusercontent.com/arkenfox/user.js/master/user.js',
-    [string]$BetterfoxUrl = 'https://raw.githubusercontent.com/yokoffing/Betterfox/main/user.js'
+    [string]$ArkenfoxUrl = "https://raw.githubusercontent.com/arkenfox/user.js/$ArkenfoxCommit/user.js",
+    [string]$BetterfoxUrl = "https://raw.githubusercontent.com/yokoffing/Betterfox/$BetterfoxCommit/user.js"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,10 +54,20 @@ if (-not (Test-Path -LiteralPath (Join-Path $Profile 'prefs.js'))) {
 
 $ark = Join-Path $env:TEMP 'arkenfox-user.js'
 $bf  = Join-Path $env:TEMP 'betterfox-user.js'
-Write-Host "Downloading Arkenfox..." -ForegroundColor Green
+Write-Host "Downloading Arkenfox (pinned $ArkenfoxCommit)..." -ForegroundColor Green
 Invoke-WebRequest -Uri $ArkenfoxUrl -OutFile $ark
-Write-Host "Downloading Betterfox..." -ForegroundColor Green
+Write-Host "Downloading Betterfox (pinned $BetterfoxCommit)..." -ForegroundColor Green
 Invoke-WebRequest -Uri $BetterfoxUrl -OutFile $bf
+
+function Test-Checksum([string]$File, [string]$Expected, [string]$Name) {
+    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $File).Hash
+    if ($actual -ne $Expected) {
+        throw "Checksum mismatch for $Name.`n  expected: $Expected`n  actual:   $actual`nUpstream may have changed. Review before proceeding."
+    }
+    Write-Host "  $Name checksum OK" -ForegroundColor Green
+}
+Test-Checksum $ark $ArkenfoxSha256 'Arkenfox'
+Test-Checksum $bf  $BetterfoxSha256 'Betterfox'
 
 # Preserve the existing firefox-debloat managed block (if any).
 $markBegin = '// >>> firefox-debloat >>>'

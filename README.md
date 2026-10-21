@@ -14,12 +14,19 @@
 ![Firefox](https://img.shields.io/badge/Firefox-152%2B-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)
 ![Reversible](https://img.shields.io/badge/changes-100%25%20reversible-2ea44f?style=for-the-badge)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge)
+![CI](https://github.com/apauruseya-stack/firefox-hardened/actions/workflows/ci.yml/badge.svg)
 
 **A layered, reversible hardening stack for the real Mozilla Firefox.**
 <br/>
 `firefox-debloat` + `Arkenfox` + `Betterfox` + your own overrides, stacked in the right order.
 
 [**Quick start**](#-quick-start) · [**The layers**](#-the-four-layers) · [**Why this stack**](#-why-this-stack) · [**Revert**](#-undo-everything) · [**Screenshots**](#-screenshots)
+
+<br/>
+
+```powershell
+git clone https://github.com/apauruseya-stack/firefox-hardened.git && cd firefox-hardened && powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1
+```
 
 </div>
 
@@ -64,7 +71,7 @@ flowchart LR
 | Layer | Source | Scope | Reversible? |
 |---|---|---|---|
 | 📜 **Policies** | `config/policies.json` (firefox-debloat) | all profiles, all users | ✅ `.debloat-orig` backup |
-| 🧹 **Debloat prefs** | managed block in `user.js` | per profile | ✅ block removed on `-Revert` |
+| 🧹 **Debloat prefs** | managed block in `user.js` | per profile | ✅ block removed on `-Revert` (Windows) / `--revert` (Linux) |
 | 🛡️ **Arkenfox** | full `user.js` template | per profile | ✅ restore backup |
 | ⚡ **Betterfox** | curated `user.js` | per profile | ✅ restore backup |
 | 🎛️ **Overrides** | appended prefs | per profile | ✅ delete the block |
@@ -72,6 +79,11 @@ flowchart LR
 The debloat script is **idempotent** and leaves everything outside its managed block alone, so re-running it never wipes your Arkenfox, Betterfox or override layers.
 
 ---
+
+> [!WARNING]
+> **Two things to know before you apply:**
+> 1. **Stay logged in.** Arkenfox clears cookies and site data on close by default. This stack's overrides disable that so you stay signed in. If you prefer the stricter default, remove those override lines.
+> 2. **Some sites may break.** ETP Strict, RFP, CanvasBlocker and disabled prefetch can affect banking, captchas and some web apps. Use the shield icon in the address bar to add per-site exceptions, or turn RFP off in overrides.
 
 ## 🚀 Quick start
 
@@ -85,6 +97,8 @@ The debloat script is **idempotent** and leaves everything outside its managed b
 | **Firefox** | installed and opened once (so a profile exists) | same |
 
 > 💡 Recommended: **Firefox 152+** (needed for the `AIControls` and `DisableAccounts` policies).
+>
+> 🧪 **Tested on:** Firefox 158 / Windows 11 (PowerShell 5.1 and 7). Linux path is documented but the merge step there is newer; macOS is untested (policies path differs - see below).
 
 ### 🪟 Windows
 
@@ -130,6 +144,16 @@ cd firefox-hardened
 ```
 
 > 🤝 The Linux merge step isn't scripted yet. **PRs welcome!**
+
+### 🍎 macOS (untested)
+
+macOS is not tested, but it should mostly work. Notes:
+
+- Enterprise policies live in `/Library/Application Support/Mozilla/policies/policies.json` (or the app bundle's `distribution/` folder), not `/etc/firefox/policies`. Use `-PolicyDir` / `FIREFOX_POLICY_DIR` to point at the right folder.
+- Profile location: `~/Library/Application Support/Firefox/Profiles/`.
+- The Bash merge script works the same way; profile discovery covers the standard path above.
+
+If you try it on a Mac, please open an issue with what worked and what didn't.
 
 ---
 
@@ -191,7 +215,7 @@ How it compares with **stock Firefox** and **LibreWolf**:
 | Official Mozilla binary and updates | ✅ | ❌ | ✅ |
 | Site / DRM compatibility | 🏆 Best | ⚠️ Reduced | 🏆 Best |
 | Fingerprinting protection | ❌ None | RFP (standardize) | FPP + optional RFP + CanvasBlocker (randomize) |
-| Reversible | n/a | Uninstall | ✅ `-Revert` |
+| Reversible | n/a | Uninstall | ✅ `-Revert` (Windows) / `--revert` (Linux) |
 | Breakage risk | None | Higher | Low |
 | Setup effort | None | Install a browser | Run scripts |
 
@@ -271,6 +295,63 @@ powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1 -Revert
 ```
 
 Then restore your profile's `user.js` from the backup the merge script created (`user.js.bak-<timestamp>` in the profile folder), or delete `user.js` entirely to return to Firefox defaults. **Policies revert automatically** via the `.debloat-orig` backup.
+
+---
+
+## ❓ FAQ
+
+<details>
+<summary><b>Will this break my logins?</b></summary>
+
+By default, Arkenfox clears cookies and site data on close. This stack's overrides disable that, so you stay signed in. If you prefer the stricter default, remove those override lines. Either way, your saved passwords are untouched (they live in `logins.json` / Firefox's store), and Proton Pass is auto-installed as an alternative.
+
+</details>
+
+<details>
+<summary><b>Does it work with Firefox ESR or Developer Edition?</b></summary>
+
+- **Firefox ESR:** yes, with caveats. Arkenfox recommends not using its updater on ESR and manually applying overrides. Some policies (like `AIControls`) need newer versions; on older versions they show up as errors in `about:policies`, but the `user.js` prefs still apply. See the firefox-debloat Firefox-version table.
+- **Developer Edition / Nightly:** should work, but these change fast. Policies and prefs may be added or renamed. Test and adjust.
+- **Firefox 152+ is recommended** for `AIControls` and `DisableAccounts`.
+
+</details>
+
+<details>
+<summary><b>How is this different from running Arkenfox alone?</b></summary>
+
+Arkenfox is a `user.js` template you copy over your profile. This stack:
+
+- Adds **firefox-debloat** (official enterprise policies + a managed, idempotent block) for the things Arkenfox can't reach via prefs (telemetry prefixes, policy-locked settings).
+- Adds **Betterfox** performance and annoyance tuning.
+- Auto-installs a curated extension set (uBlock Origin, Proton Pass, Privacy Badger, TWP, PopUpOFF, Popup Blocker, CanvasBlocker).
+- Sets Brave Search as default and disables Firefox's password manager / autofill.
+- Keeps everything in **managed blocks** so re-running is safe and reverting is one command.
+- Pins and verifies the Arkenfox / Betterfox downloads.
+
+Arkenfox is the privacy core; this stack wraps it with policy, performance, extensions and convenience.
+
+</details>
+
+<details>
+<summary><b>Will it break my sites?</b></summary>
+
+Possibly a few. ETP Strict, RFP, CanvasBlocker and disabled prefetch can affect banking, captchas and some web apps. Use the shield icon in the address bar to add per-site exceptions, or turn RFP off in overrides.
+
+</details>
+
+<details>
+<summary><b>How do I add a per-site exception?</b></summary>
+
+Click the shield icon in the address bar on the affected site, then disable "Enhanced Tracking Protection" for that site. For CanvasBlocker, use its toolbar icon. For RFP, add the site to `privacy.resistFingerprinting.exemptions` if needed.
+
+</details>
+
+<details>
+<summary><b>How do I turn RFP off?</b></summary>
+
+Remove or comment out the two `privacy.resistFingerprinting*` lines in your overrides (or in `user.js`), then restart Firefox.
+
+</details>
 
 ---
 
