@@ -56,6 +56,22 @@
       "jid1-MnnxcxisBPnSXQ@jetpack": {
         "installation_mode": "force_installed",
         "install_url": "https://addons.mozilla.org/firefox/downloads/latest/privacy-badger17/latest.xpi"
+      },
+      "extension@tabliss-maintained": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/tablissng/latest.xpi"
+      },
+      "{036a55b4-5e72-4d05-a06c-cba2dfcc134a}": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/traduzir-paginas-web/latest.xpi"
+      },
+      "{154cddeb-4c8b-4627-a478-c7e5b427ffdf}": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/popupoff/latest.xpi"
+      },
+      "{de22fd49-c9ab-4359-b722-b3febdc3a0b0}": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/popup-blocker/latest.xpi"
       }
     },
     "Preferences": {
