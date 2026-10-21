@@ -1,239 +1,320 @@
-# firefox-hardened
+<div align="center">
 
-A layered, **reversible** Firefox hardening stack for Windows (and Linux) that combines:
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=220&section=header&text=firefox-hardened&fontSize=60&fontColor=ffffff&fontAlignY=38&desc=Privacy%20%C2%B7%20Speed%20%C2%B7%20Zero%20Bloat%20%E2%80%94%20on%20the%20official%20Firefox&descSize=18&descAlignY=60&animation=fadeIn" alt="firefox-hardened banner" width="100%"/>
 
-1. **firefox-debloat** - removes telemetry, ads, sponsored content, recommendations, AI features and (optionally) Firefox Account/Sync via official enterprise policies plus a managed `user.js` block.
-2. **Arkenfox user.js** - deep privacy hardening (ETP Strict, HTTPS-only, disk avoidance, referer trimming, containers, FPP, optional RFP, sanitizing).
-3. **Betterfox** - performance tuning (network, caches, GFX) plus annoyance removal (AI, new tab, URL bar, permissions).
-4. **Personal overrides** - stay logged in, speculative loading for speed, anti-fingerprinting choice, Tabliss new tab, etc.
+<a href="https://github.com/apauruseya-stack/firefox-hardened">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&pause=1200&color=FF7139&center=true&vCenter=true&width=720&lines=Telemetry+%E2%86%92+gone.;Ads+%26+AI+bloat+%E2%86%92+gone.;Fingerprinting+%E2%86%92+fought+back.;Official+Firefox+binary.+No+fork.;Every+change+is+reversible." alt="Typing animation" />
+</a>
 
-Everything runs on top of the **official Mozilla Firefox binary** - no fork, no third-party build, full site and DRM compatibility, official updates. All changes are reversible.
+<br/>
 
-> Status: personal toolkit, shared as-is. Read the warnings before applying.
+![License](https://img.shields.io/badge/license-AGPL--3.0-blue?style=for-the-badge)
+![Windows](https://img.shields.io/badge/Windows-supported-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-supported-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![Firefox](https://img.shields.io/badge/Firefox-152%2B-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)
+![Reversible](https://img.shields.io/badge/changes-100%25%20reversible-2ea44f?style=for-the-badge)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge)
 
----
+**A layered, reversible hardening stack for the real Mozilla Firefox.**
+<br/>
+`firefox-debloat` + `Arkenfox` + `Betterfox` + your own overrides, stacked in the right order.
 
-## Table of contents
+[**Quick start**](#-quick-start) · [**The layers**](#-the-four-layers) · [**Why this stack**](#-why-this-stack) · [**Revert**](#-undo-everything) · [**Screenshots**](#-screenshots)
 
-- [What this does / does not do](#what-this-does--does-not-do)
-- [Requirements](#requirements)
-- [Quick start (Windows)](#quick-start-windows)
-- [Quick start (Linux)](#quick-start-linux)
-- [The layers explained](#the-layers-explained)
-- [Customizing](#customizing)
-- [Warnings and side effects](#warnings-and-side-effects)
-- [Reverting](#reverting)
-- [Maintenance](#maintenance)
-- [Screenshots](#screenshots)
-- [Credits and licenses](#credits-and-licenses)
+</div>
 
----
+<br/>
 
-## What this does / does not do
-
-**Does:**
-
-- Disables telemetry, studies (Shield/Normandy), crash reports, sponsored content, Firefox Suggest, recommendations, AI features, Mozilla promotions.
-- Sets the default search engine to **Brave Search** (via the `SearchEngines` policy).
-- Auto-installs **uBlock Origin**, **Proton Pass**, **Privacy Badger**, **TWP (Translate Web Pages)**, **PopUpOFF**, **Popup Blocker (strict)** and **CanvasBlocker** (via `ExtensionSettings`).
-- Disables Firefox's built-in password manager, address and credit-card autofill, and Web Payments by default (Proton Pass replaces them).
-- Cleans the new tab page and UI annoyances (Tabliss replaces the new tab page).
-- Hardens privacy (ETP Strict, HTTPS-only, disk cache off, referer trimming, containers, FPP, optional RFP, sanitizing).
-- Improves perceived performance (network connections, caches, GFX, speculative loading).
-- Optionally disables Firefox Account / Sync (use `-KeepSync` / `--keep-sync` to keep it).
-
-**Does NOT:**
-
-- Change your search engine after the fact if you override it in Firefox settings (the policy sets the default).
-- Install any extension not listed in `ExtensionSettings` (add others manually).
-- Disable security features (Safe Browsing, updates, Remote Settings stay on).
-- Harden against fingerprinting beyond FPP/RFP/CanvasBlocker (no custom fingerprint spoofs beyond what Arkenfox provides).
-- Touch cookies, history or passwords beyond the sanitizing-on-shutdown defaults (which you can disable - see overrides).
-- Change your homepage URL (the startup page is left blank by Arkenfox; the new tab page is left to Firefox defaults unless you add an extension).
+> [!NOTE]
+> **Status:** personal toolkit, shared as-is. Read the [warnings](#-warnings--trade-offs) before applying.
 
 ---
 
-## Requirements
+## ✨ The 10-second pitch
 
-| Item | Windows | Linux |
+| | |
+|---|---|
+| 🦊 **Real Firefox** | Official Mozilla binary. No fork, no third-party build. Full site and DRM support (Netflix, banking) and instant security updates. |
+| 🧹 **Debloated** | Telemetry, studies, crash reports, sponsored content, Firefox Suggest, recommendations and AI features are switched off. |
+| 🛡️ **Hardened** | ETP Strict, HTTPS-only, referer trimming, containers, FPP, optional RFP, plus CanvasBlocker. |
+| ⚡ **Fast** | Betterfox network, cache and GFX tuning with speculative loading re-enabled. |
+| ♻️ **Reversible** | One command to roll back. Backups are created automatically. |
+
+---
+
+## 🧱 The four layers
+
+Firefox reads `user.js` on every start and the **last value wins**. Enterprise policies (`policies.json`) apply machine-wide and show up in `about:policies`.
+
+```mermaid
+flowchart LR
+    A["🛡️ Arkenfox<br/><sub>deep privacy</sub>"] --> B["⚡ Betterfox<br/><sub>speed + less annoyance</sub>"]
+    B --> C["🧹 Debloat block<br/><sub>telemetry, ads, AI off</sub>"]
+    C --> D["🎛️ Your overrides<br/><sub>final say</sub>"]
+    P["📜 policies.json<br/><sub>machine-wide</sub>"] -.-> D
+    style A fill:#1e2327,stroke:#ff7139,color:#fff
+    style B fill:#1e2327,stroke:#ff7139,color:#fff
+    style C fill:#1e2327,stroke:#ff7139,color:#fff
+    style D fill:#ff7139,stroke:#ff7139,color:#000
+    style P fill:#1e2327,stroke:#888,color:#fff
+```
+
+> **Order matters:** Arkenfox → Betterfox → debloat block → overrides. The more specific and personal a layer is, the later it loads, so it wins.
+
+| Layer | Source | Scope | Reversible? |
+|---|---|---|---|
+| 📜 **Policies** | `config/policies.json` (firefox-debloat) | all profiles, all users | ✅ `.debloat-orig` backup |
+| 🧹 **Debloat prefs** | managed block in `user.js` | per profile | ✅ block removed on `-Revert` |
+| 🛡️ **Arkenfox** | full `user.js` template | per profile | ✅ restore backup |
+| ⚡ **Betterfox** | curated `user.js` | per profile | ✅ restore backup |
+| 🎛️ **Overrides** | appended prefs | per profile | ✅ delete the block |
+
+The debloat script is **idempotent** and leaves everything outside its managed block alone, so re-running it never wipes your Arkenfox, Betterfox or override layers.
+
+---
+
+## 🚀 Quick start
+
+### 📋 Requirements
+
+| | Windows | Linux |
 |---|---|---|
-| Interpreter | Windows PowerShell 5.1+ (ships with the system) or PowerShell 7+ | Bash 4+ |
-| Dependencies | none | `jq` |
-| Privileges | UAC only for the policies step | `sudo` only for `policies.json` |
-| Firefox | Installed and opened at least once (so a profile exists) | same |
+| **Interpreter** | Windows PowerShell 5.1+ (built in) or PowerShell 7+ | Bash 4+ |
+| **Dependencies** | none | `jq` |
+| **Privileges** | UAC prompt only for the policies step | `sudo` only for `policies.json` |
+| **Firefox** | installed and opened once (so a profile exists) | same |
 
-Recommended: Firefox 152 or newer (for the `AIControls` and `DisableAccounts` policies).
+> 💡 Recommended: **Firefox 152+** (needed for the `AIControls` and `DisableAccounts` policies).
 
----
-
-## Quick start (Windows)
+### 🪟 Windows
 
 ```powershell
 # 1. Clone
 git clone https://github.com/apauruseya-stack/firefox-hardened.git
 cd firefox-hardened
 
-# 2. Install Firefox if needed (winget)
+# 2. Install Firefox if you don't have it
 winget install --id Mozilla.Firefox --silent --accept-package-agreements --accept-source-agreements
 
-# 3. Open Firefox once, then close it (creates a profile)
+# 3. Open Firefox once, then close it (this creates your profile)
 & "C:\Program Files\Mozilla Firefox\firefox.exe"
-# (close it after it opens)
 
 # 4. Apply the debloat layer (UAC prompt appears for the policies step)
 powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1
-
-# Keep Sync working:
-#   powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1 -KeepSync
+#    Want to keep Sync?  add:  -KeepSync
 
 # 5. Layer Arkenfox + Betterfox on top
 powershell -ExecutionPolicy Bypass -File .\scripts\merge-arkenfox-betterfox.ps1
 
-# 6. (Optional) apply personal overrides
-#    Copy overrides\user-overrides.example.js -> <profile>\user-overrides.js is not auto-loaded.
-#    Instead, append its contents to the end of your profile's user.js.
+# 6. (Optional) personal overrides, see "Customizing" below
 
-# 7. Restart Firefox. Verify at about:policies and about:config.
+# 7. Restart Firefox, then verify at about:policies and about:config
 ```
 
-If you downloaded as a ZIP, unblock the files first:
+<details>
+<summary><b>📦 Downloaded as a ZIP?</b> Unblock the files first</summary>
 
 ```powershell
 Get-ChildItem -Recurse | Unblock-File
 ```
 
-## Quick start (Linux)
+</details>
+
+### 🐧 Linux
 
 ```bash
 git clone https://github.com/apauruseya-stack/firefox-hardened.git
 cd firefox-hardened
 ./linux/firefox-debloat.sh
-# then manually append Arkenfox + Betterfox user.js content + overrides to your profile's user.js
+# then append the Arkenfox + Betterfox user.js content and your overrides to your profile's user.js
 ```
 
-(Linux merge automation is not yet scripted - PRs welcome.)
+> 🤝 The Linux merge step isn't scripted yet. **PRs welcome!**
 
 ---
 
-## The layers explained
+## 🎯 What it does (and doesn't)
 
-Firefox reads `user.js` on every start and applies its prefs (last value wins). Enterprise policies (`policies.json`) apply machine-wide and show up in `about:policies`.
+<table>
+<tr>
+<td width="50%" valign="top">
 
-| Layer | Source | Scope | Reversible |
-|---|---|---|---|
-| Policies | `config/policies.json` (firefox-debloat) | all profiles / all users | yes (`.debloat-orig` backup) |
-| Debloat prefs | managed block in `user.js` | per profile | yes (block removed on `-Revert`) |
-| Arkenfox | full `user.js` template | per profile | yes (restore backup) |
-| Betterfox | curated `user.js` | per profile | yes (restore backup) |
-| Overrides | appended prefs | per profile | yes (delete the block) |
+### ✅ Does
 
-Order matters: **Arkenfox -> Betterfox -> debloat block -> overrides**, so the more specific / personal values win.
+- 🚫 Disables telemetry, Shield/Normandy studies, crash reports, sponsored content, Firefox Suggest, recommendations, AI features and Mozilla promotions
+- 🔍 Sets **Brave Search** as the default engine (via the `SearchEngines` policy)
+- 🧩 Auto-installs a curated extension set (see below)
+- 🔑 Turns off built-in password manager, address and card autofill and Web Payments (Proton Pass replaces them)
+- 🧼 Cleans the new tab page and UI annoyances (blank new tab, no Top Sites or sponsored content)
+- 🛡️ Hardens privacy: ETP Strict, HTTPS-only, disk cache off, referer trimming, containers, FPP, optional RFP, sanitizing
+- ⚡ Tunes network, caches, GFX and speculative loading
+- 🔄 Optionally disables Firefox Account / Sync (`-KeepSync` / `--keep-sync` keeps it)
 
-The firefox-debloat script is idempotent and keeps anything outside its managed block intact, so re-running it preserves the Arkenfox / Betterfox / override layers.
+</td>
+<td width="50%" valign="top">
+
+### ❌ Does not
+
+- 🔁 Change your search engine after the fact if you override it in Firefox settings (the policy sets the *default*)
+- ➕ Install extensions outside `ExtensionSettings` (add others manually)
+- 🔓 Disable security features: **Safe Browsing, updates and Remote Settings stay on**
+- 🎭 Go beyond FPP / RFP / CanvasBlocker for fingerprinting (no custom spoofs beyond what Arkenfox provides)
+- 🍪 Touch cookies, history or passwords beyond the sanitize-on-shutdown defaults (which you can disable in overrides)
+- 🏠 Change your homepage (startup page is blank via Arkenfox, new tab is Firefox default unless you add an extension)
+
+</td>
+</tr>
+</table>
+
+### 🧩 Auto-installed extensions
+
+| Extension | Purpose |
+|---|---|
+| **uBlock Origin** | content blocking |
+| **Proton Pass** | password manager (replaces Firefox's built-in one) |
+| **Privacy Badger** | tracker learning and blocking |
+| **CanvasBlocker** | per-site canvas / WebGL / audio randomization |
+| **TWP (Translate Web Pages)** | translation |
+| **PopUpOFF** | popup and overlay control |
+| **Popup Blocker (strict)** | popup blocking |
 
 ---
 
-## Customizing
+## 🥊 Why this stack
 
-- **Edit `config/policies.json` / `config/user.js`** (firefox-debloat inputs) and re-run the script.
-- **Keep Sync:** run with `-KeepSync` / `--keep-sync`.
-- **Lock policies (greyed out in UI):** `-Lock` / `--lock`.
-- **Block local translation too:** `-BlockTranslations` / `--block-translations`.
-- **Arkenfox options:** most are controlled by editing prefs in `user.js` (look for `[SETUP-*]` tags in the Arkenfox file). RFP is off by default; enable it in overrides if you want it.
-- **Personal overrides:** copy `overrides/user-overrides.example.js`, edit, and append to the end of your profile's `user.js`.
+How it compares with **stock Firefox** and **LibreWolf**:
+
+| | Stock Firefox | LibreWolf | **This stack** |
+|---|:---:|:---:|:---:|
+| Telemetry / ads / AI removed | ❌ | ✅ | ✅ |
+| Security features kept | ✅ | ⚠️ Mostly | ✅ |
+| Official Mozilla binary and updates | ✅ | ❌ | ✅ |
+| Site / DRM compatibility | 🏆 Best | ⚠️ Reduced | 🏆 Best |
+| Fingerprinting protection | ❌ None | RFP (standardize) | FPP + optional RFP + CanvasBlocker (randomize) |
+| Reversible | n/a | Uninstall | ✅ `-Revert` |
+| Breakage risk | None | Higher | Low |
+| Setup effort | None | Install a browser | Run scripts |
+
+<details>
+<summary><b>🕵️ Fingerprinting</b></summary>
+
+- **Stock Firefox:** no fingerprinting protection. Your real UA, screen size, timezone, canvas, WebGL, fonts, hardware concurrency and DNT header are exposed. Cover Your Tracks reports a unique fingerprint.
+- **LibreWolf:** RFP is on by default. It's strong, but it forces GMT timezone, light theme and window letterboxing, and breaks some sites. The RFP population is small, so you can still look unique.
+- **This stack:** RFP is available (enable it in overrides) plus CanvasBlocker in "fake" mode, which randomizes canvas / WebGL / audio / DOMRect / screen / navigator **per site** (Brave-like). The DNT header is disabled to remove an identifying bit, and FPP (via ETP Strict) is on by default. Per-site randomization makes cross-site tracking much harder while keeping more sites working.
+
+</details>
+
+<details>
+<summary><b>🔒 Safety and security</b></summary>
+
+- **Stock Firefox:** Safe Browsing, updates and Remote Settings are on, but telemetry, studies and crash reports send data out.
+- **LibreWolf:** disables many features, and some security-related remote services may be reduced. Updates come from LibreWolf's own channel, which can lag.
+- **This stack:** keeps every security feature on (Safe Browsing, updates, Remote Settings, captive portal) and removes data collection and ad / tracking content. It uses the official Mozilla binary, so Mozilla's security updates arrive immediately. Policies are official enterprise mechanisms: reversible, auditable, visible in `about:policies`.
+
+</details>
+
+<details>
+<summary><b>⚡ Speed and performance</b></summary>
+
+- **Stock Firefox:** default network and cache settings, speculative loading on.
+- **LibreWolf:** RFP and stricter settings can slow some loads, and letterboxing adds overhead.
+- **This stack:** Betterfox Fastfox tuning (more connections, larger buffers, DNS cache, media / image cache, skia font cache) plus re-enabled speculative loading (DNS prefetch, link prefetch, speculative connections). Disk cache is off for privacy; enable it in overrides for faster repeat loads.
+
+</details>
+
+<details>
+<summary><b>🧰 Convenience and compatibility</b></summary>
+
+- **Stock Firefox:** nothing to set up, but noisy (telemetry, ads, AI, recommendations).
+- **LibreWolf:** a separate browser with its own profile and update channel. It breaks some sites (banking, video, captchas) and is harder to undo.
+- **This stack:** runs on stock Firefox with full site and DRM compatibility, official updates, and a one-command revert. It keeps your profile and extensions, auto-installs the curated extension set, and can keep Sync with `-KeepSync`.
+
+</details>
+
 ---
 
-## Warnings and side effects
+## 🎛️ Customizing
 
-1. **Stay-logged-in vs. privacy.** Arkenfox clears cookies and site data on close by default. The provided overrides disable that so you stay signed in. If you want the stricter default, remove those override lines.
-2. **RFP (anti-fingerprinting) is optional.** Enabling it forces GMT timezone, prefers light theme, and rounds window size. It can break canvas-heavy or timezone-sensitive sites. Enable only if you accept that.
-3. **Speculative loading re-enabled** (for speed) is a minor privacy trade-off.
-4. **Disk cache stays off** (privacy). Enable it in overrides for faster repeat loads.
+| I want to... | Do this |
+|---|---|
+| Change policies or debloat prefs | Edit `config/policies.json` / `config/user.js`, then re-run the script |
+| Keep Firefox Sync | `-KeepSync` / `--keep-sync` |
+| Lock policies (greyed out in the UI) | `-Lock` / `--lock` |
+| Block local translation too | `-BlockTranslations` / `--block-translations` |
+| Tweak Arkenfox | Edit prefs in its `user.js` (look for `[SETUP-*]` tags). RFP is off by default; enable it in overrides |
+| Add personal overrides | Copy `overrides/user-overrides.example.js`, edit it, and **append it to the end of your profile's `user.js`** (it is not auto-loaded) |
+
+---
+
+## ⚠️ Warnings & trade-offs
+
+> [!WARNING]
+> This stack trades a little privacy for convenience in a few places. Know them before you apply it.
+
+1. **Stay-logged-in vs. privacy.** Arkenfox clears cookies and site data on close. The provided overrides disable that so you stay signed in. Remove those override lines for the stricter default.
+2. **RFP is optional.** Enabling it forces GMT timezone, prefers the light theme and rounds window size. It can break canvas-heavy or timezone-sensitive sites.
+3. **Speculative loading is re-enabled** for speed, which is a minor privacy trade-off.
+4. **Disk cache stays off** for privacy. Enable it in overrides for faster repeat loads.
 5. **Site breakage.** ETP Strict + RFP + disabled prefetch can break a few sites (banking, captchas, some web apps). Use the shield icon in the address bar to add per-site exceptions.
-6. **Extensions are force-installed** (uBlock Origin, Proton Pass, Privacy Badger, TWP, PopUpOFF, Popup Blocker, CanvasBlocker) via policy. To change the list, edit `ExtensionSettings` in `config/policies.json` and re-run. To disable auto-install entirely, remove that block.
-7. **CanvasBlocker + RFP.** CanvasBlocker's FAQ confirms RFP can stay on. CanvasBlocker's default mode is "fake" (per-site randomization). Having both RFP and CanvasBlocker is supported.
-8. **Brave Search preferences** ("Anonymous local results", "Discussions", "Anonymous usage metrics") are Brave Search settings, not Firefox settings. After your first search, open Brave Search's gear icon -> Preferences and turn them off; the choice persists in a cookie for this profile.
-9. **Profile data never committed.** `.gitignore` excludes `prefs.js`, backups, and `user-overrides.js`. Do not commit real profile files.
+6. **Extensions are force-installed** via policy. To change the list, edit `ExtensionSettings` in `config/policies.json` and re-run. To disable auto-install entirely, remove that block.
+7. **CanvasBlocker + RFP** can run together. CanvasBlocker's FAQ confirms RFP can stay on, and its default mode is "fake" (per-site randomization).
+8. **Brave Search preferences** ("Anonymous local results", "Discussions", "Anonymous usage metrics") are Brave settings, not Firefox settings. After your first search, open Brave Search's gear icon → Preferences and turn them off. The choice persists in a cookie for this profile.
+9. **Profile data is never committed.** `.gitignore` excludes `prefs.js`, backups and `user-overrides.js`. Don't commit real profile files.
 
 ---
 
-## Reverting
+## ↩️ Undo everything
 
 ```powershell
 # Close Firefox first (it rewrites prefs.js on exit).
 powershell -ExecutionPolicy Bypass -File .\windows\firefox-debloat.ps1 -Revert
 ```
 
-Then restore your profile's `user.js` from the backup created by the merge script (`user.js.bak-<timestamp>` in the profile folder), or delete `user.js` entirely to go back to Firefox defaults. Policies revert via the `.debloat-orig` backup automatically.
+Then restore your profile's `user.js` from the backup the merge script created (`user.js.bak-<timestamp>` in the profile folder), or delete `user.js` entirely to return to Firefox defaults. **Policies revert automatically** via the `.debloat-orig` backup.
 
 ---
 
-## Maintenance
+## 🔧 Maintenance
 
-- Arkenfox and Betterfox are static `user.js` files. Re-run the merge script to pull the latest versions when Firefox updates.
-- Arkenfox recommends running `prefsCleaner` after major Firefox updates to reset deprecated prefs.
-- The firefox-debloat script is idempotent - re-running it regenerates policies from the original + `config/`.
-
----
-
-## Why this stack (vs. LibreWolf and stock Firefox)
-
-This section explains the practical benefits of this stack over **original Firefox** and **LibreWolf**.
-
-### Fingerprinting
-
-- **Original Firefox:** no fingerprinting protection. Your real UA, screen size, timezone, canvas, WebGL, fonts, hardware concurrency and DNT header are all exposed. Cover Your Tracks reports a unique fingerprint.
-- **LibreWolf:** enables RFP (Resist Fingerprinting) by default. Strong, but RFP forces GMT timezone, light theme and window letterboxing, and breaks some sites. The RFP population is small, so you can still look unique among all browsers.
-- **This stack:** RFP is available (enable in overrides) plus CanvasBlocker in "fake" mode, which randomizes canvas / WebGL / audio / DOMRect / screen / navigator per site (Brave-like). DNT header is disabled to remove an identifying bit. FPP (via ETP Strict) is on by default. You get per-site randomization instead of a single fixed spoof, which makes cross-site tracking much harder while keeping more sites working.
-
-### Safety and security
-
-- **Original Firefox:** Safe Browsing, updates and Remote Settings are on, but telemetry, studies and crash reports send data out.
-- **LibreWolf:** disables many features; some security-related remote services may be reduced. Updates come from LibreWolf's own channel (can lag).
-- **This stack:** keeps all security features on (Safe Browsing, updates, Remote Settings, captive portal). Removes data collection (telemetry, studies, crash reports) and ads / tracking content. Uses the official Mozilla binary, so you get Mozilla's security updates immediately. Policies are official enterprise mechanisms (`about:policies`), reversible, and auditable.
-
-### Speed and performance
-
-- **Original Firefox:** default network and cache settings; speculative loading on.
-- **LibreWolf:** RFP and stricter settings can slow some page loads; letterboxing adds overhead.
-- **This stack:** Betterfox Fastfox tuning (more connections, larger buffers, DNS cache, media/image cache, skia font cache) plus re-enabled speculative loading (DNS prefetch, link prefetch, speculative connections) for faster page loads. Disk cache is off for privacy (enable in overrides if you want faster repeat loads).
-
-### Convenience and compatibility
-
-- **Original Firefox:** nothing to set up, but noisy (telemetry, ads, AI, recommendations).
-- **LibreWolf:** separate browser, own profile, own update channel, breaks some sites (banking, video, captchas), harder to undo.
-- **This stack:** runs on stock Firefox - full site and DRM compatibility (Netflix, banking), official updates, reversible (`-Revert`), keeps your profile and extensions. Auto-installs a curated extension set (uBlock Origin, Proton Pass, Privacy Badger, TWP, PopUpOFF, Popup Blocker, CanvasBlocker). Sync can be kept with `-KeepSync`.
-
-### Summary table
-
-| | Stock Firefox | LibreWolf | This stack |
-|---|---|---|---|
-| Telemetry / ads / AI removed | No | Yes | Yes |
-| Security features kept | Yes | Mostly | Yes |
-| Official Mozilla binary and updates | Yes | No | Yes |
-| Site / DRM compatibility | Best | Reduced | Best |
-| Fingerprinting protection | None | RFP (standardize) | FPP + optional RFP + CanvasBlocker (randomize) |
-| Reversible | n/a | Uninstall | Yes (`-Revert`) |
-| Breakage risk | None | Higher | Low |
-| Setup effort | None | Install browser | Run scripts |
+- 🔄 Arkenfox and Betterfox are static `user.js` files. **Re-run the merge script** to pull the latest versions when Firefox updates.
+- 🧽 Arkenfox recommends running `prefsCleaner` after major Firefox updates to reset deprecated prefs.
+- 🔁 The debloat script is idempotent. Re-running it regenerates policies from the original plus `config/`.
 
 ---
 
-## Screenshots
+## 📸 Screenshots
+
+<div align="center">
 
 ### Enterprise policies (`about:policies`)
-![about:policies](screenshots/about-policies.png)
+<a href="screenshots/about-policies.png"><img src="screenshots/about-policies.png" alt="about:policies" width="85%"/></a>
+
+<br/><br/>
 
 ### Installed extensions (`about:addons`)
-![about:addons](screenshots/about-addons.png)
+<a href="screenshots/about-addons.png"><img src="screenshots/about-addons.png" alt="about:addons" width="85%"/></a>
+
+</div>
 
 ---
 
-## Credits and licenses
+## 🙏 Credits & licenses
 
-- [firefox-debloat](https://github.com/henriquesebastiao/firefox-debloat) by henriquesebastiao - AGPL-3.0. Vendored under `windows/`, `linux/`, `config/`, `tests/` with its original license.
-- [Arkenfox user.js](https://github.com/arkenfox/user.js) - MIT.
-- [Betterfox](https://github.com/yokoffing/Betterfox) - see its LICENSE.
-- Original additions in this repo (merge script, overrides example, README) - AGPL-3.0 (to remain compatible with the vendored firefox-debloat code).
+| Project | Role | License |
+|---|---|---|
+| [firefox-debloat](https://github.com/henriquesebastiao/firefox-debloat) by henriquesebastiao | Vendored under `windows/`, `linux/`, `config/`, `tests/` | AGPL-3.0 (original license kept) |
+| [Arkenfox user.js](https://github.com/arkenfox/user.js) | Deep privacy layer | MIT |
+| [Betterfox](https://github.com/yokoffing/Betterfox) | Performance and annoyance layer | see its LICENSE |
+| This repo's original additions (merge script, overrides example, README) | Glue | AGPL-3.0, to stay compatible with the vendored code |
 
 If you redistribute, keep the licenses and attribution.
+
+<br/>
+
+<div align="center">
+
+**Found it useful? Drop a ⭐ and share it.**
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=120&section=footer" alt="footer" width="100%"/>
+
+</div>
