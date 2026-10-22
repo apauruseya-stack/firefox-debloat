@@ -36,11 +36,12 @@ $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 $Owner = 'apauruseya-stack'
 $Repo = 'firefox-debloat'
-$DefaultVersion = 'v1.1.0'
+$DefaultVersion = 'v1.1.1'
 
 # Pinned releases and their SHA-256 checksums.
 $Releases = @{
     'v1.1.0' = '8be484db3cc3251f2cdd121afe41303633a4ee9b6b50988d1f15a606beb6095b'
+    'v1.1.1' = 'aec0cbfe89dcb7c94e8d4259489fc12ac7a564968c76566ec324996247d2ac5b'
 }
 
 function Write-Info([string]$Text) { Write-Host "==> $Text" -ForegroundColor Green }
