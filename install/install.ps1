@@ -1,25 +1,25 @@
 <#
 .SYNOPSIS
-    One-line installer for firefox-hardened.
+    One-line installer for firefox-debloat.
 
 .DESCRIPTION
-    Downloads a pinned release of firefox-hardened, verifies its SHA-256 checksum, unpacks it to
+    Downloads a pinned release of firefox-debloat, verifies its SHA-256 checksum, unpacks it to
     a temporary folder, runs the Windows script and deletes the temporary folder. Nothing is
     installed permanently.
 
     Usage:
-      irm https://raw.githubusercontent.com/apauruseya-stack/firefox-hardened/main/install/install.ps1 | iex
+      irm https://raw.githubusercontent.com/apauruseya-stack/firefox-debloat/main/install/install.ps1 | iex
 
       # With a specific version:
       $env:FIREFOX_DEBLOAT_VERSION = 'v1.1.0'
-      irm https://raw.githubusercontent.com/apauruseya-stack/firefox-hardened/main/install/install.ps1 | iex
+      irm https://raw.githubusercontent.com/apauruseya-stack/firefox-debloat/main/install/install.ps1 | iex
 
       # Download and verify only, do not run anything:
       $env:FIREFOX_DEBLOAT_NO_LAUNCH = '1'
-      irm https://raw.githubusercontent.com/apauruseya-stack/firefox-hardened/main/install/install.ps1 | iex
+      irm https://raw.githubusercontent.com/apauruseya-stack/firefox-debloat/main/install/install.ps1 | iex
 
       # Pass options to the script (use the script block form):
-      & ([scriptblock]::Create((irm https://raw.githubusercontent.com/apauruseya-stack/firefox-hardened/main/install/install.ps1))) -Preset strict
+      & ([scriptblock]::Create((irm https://raw.githubusercontent.com/apauruseya-stack/firefox-debloat/main/install/install.ps1))) -Preset strict
 
 .NOTES
     The checksum is published in this file and next to the release asset. If the download does not
@@ -35,7 +35,7 @@ $ErrorActionPreference = 'Stop'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 $Owner = 'apauruseya-stack'
-$Repo = 'firefox-hardened'
+$Repo = 'firefox-debloat'
 $DefaultVersion = 'v1.1.0'
 
 # Pinned releases and their SHA-256 checksums.
@@ -53,10 +53,10 @@ if (-not $Releases.ContainsKey($version)) {
 }
 $expected = $Releases[$version]
 
-$asset = "firefox-hardened-$version.zip"
+$asset = "firefox-debloat-$version.zip"
 $url = "https://github.com/$Owner/$Repo/releases/download/$version/$asset"
 
-$temp = Join-Path ([IO.Path]::GetTempPath()) ("firefox-hardened-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+$temp = Join-Path ([IO.Path]::GetTempPath()) ("firefox-debloat-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Path $temp -Force | Out-Null
 $zip = Join-Path $temp $asset
 

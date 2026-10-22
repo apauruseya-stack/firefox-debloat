@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=220&section=header&text=firefox-hardened&fontSize=60&fontColor=ffffff&fontAlignY=38&desc=Privacy%20%C2%B7%20Speed%20%C2%B7%20Zero%20Bloat%20%E2%80%94%20on%20the%20official%20Firefox&descSize=18&descAlignY=60&animation=fadeIn" alt="firefox-hardened banner" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=220&section=header&text=firefox-debloat&fontSize=60&fontColor=ffffff&fontAlignY=38&desc=Privacy%20%C2%B7%20Speed%20%C2%B7%20Zero%20Bloat%20%E2%80%94%20on%20the%20official%20Firefox&descSize=18&descAlignY=60&animation=fadeIn" alt="firefox-debloat banner" width="100%"/>
 
-<a href="https://github.com/apauruseya-stack/firefox-hardened">
+<a href="https://github.com/apauruseya-stack/firefox-debloat">
   <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&pause=1200&color=FF7139&center=true&vCenter=true&width=720&lines=Telemetry+%E2%86%92+gone.;Ads+%26+AI+bloat+%E2%86%92+gone.;Fingerprinting+%E2%86%92+fought+back.;Official+Firefox+binary.+No+fork.;Every+change+is+reversible." alt="Typing animation" />
 </a>
 
@@ -15,7 +15,7 @@
 ![Zen Browser](https://img.shields.io/badge/Zen%20Browser-tested%20on%201.23.3b-6B5BFF?style=for-the-badge)
 ![Reversible](https://img.shields.io/badge/changes-100%25%20reversible-2ea44f?style=for-the-badge)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge)
-![CI](https://github.com/apauruseya-stack/firefox-hardened/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/apauruseya-stack/firefox-debloat/actions/workflows/ci.yml/badge.svg)
 
 **A layered, reversible hardening stack for the real Mozilla Firefox, now verified on Zen Browser too.**
 <br/>
@@ -103,15 +103,15 @@ The debloat script is **idempotent** and leaves everything outside its managed b
 **One-line install** (downloads, verifies the SHA-256, runs, cleans up):
 
 ```powershell
-irm https://raw.githubusercontent.com/apauruseya-stack/firefox-hardened/main/install/install.ps1 | iex
+irm https://raw.githubusercontent.com/apauruseya-stack/firefox-debloat/main/install/install.ps1 | iex
 ```
 
 **Or from the source** (full control, easier to read first):
 
 ```powershell
 # 1. Clone
-git clone https://github.com/apauruseya-stack/firefox-hardened.git
-cd firefox-hardened
+git clone https://github.com/apauruseya-stack/firefox-debloat.git
+cd firefox-debloat
 
 # 2. Install Firefox if you don't have it
 winget install --id Mozilla.Firefox --silent --accept-package-agreements --accept-source-agreements
@@ -148,8 +148,8 @@ Get-ChildItem -Recurse | Unblock-File
 ### 🐧 Linux
 
 ```bash
-git clone https://github.com/apauruseya-stack/firefox-hardened.git
-cd firefox-hardened
+git clone https://github.com/apauruseya-stack/firefox-debloat.git
+cd firefox-debloat
 
 # See what would change, without writing anything
 ./linux/firefox-debloat.sh --preview

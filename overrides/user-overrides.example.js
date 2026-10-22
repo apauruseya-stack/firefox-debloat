@@ -1,6 +1,6 @@
 /* user-overrides.example.js
  *
- * Optional personal overrides for the firefox-hardened stack.
+ * Optional personal overrides for the firefox-debloat stack.
  * Append (or merge) these into your profile's user.js AFTER the firefox-debloat managed
  * block and AFTER any Arkenfox/Betterfox content, so that these values win (user.js
  * applies top-to-bottom, last value wins).
