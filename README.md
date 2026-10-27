@@ -100,7 +100,8 @@ The debloat script is **idempotent** and leaves everything outside its managed b
 
 ### 🪟 Windows
 
-**One-line install** (downloads, verifies the SHA-256, runs, cleans up):
+**One-line install** (downloads, verifies the SHA-256, runs, cleans up; applies the full stack:
+debloat + Arkenfox + Betterfox):
 
 ```powershell
 irm https://raw.githubusercontent.com/apauruseya-stack/firefox-debloat/main/install/install.ps1 | iex

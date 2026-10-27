@@ -54,7 +54,12 @@ if (-not $Releases.ContainsKey($version)) {
 }
 $expected = $Releases[$version]
 
-$asset = "firefox-debloat-$version.zip"
+# Release asset names changed once during the rename from firefox-hardened to firefox-debloat.
+$Assets = @{
+    'v1.1.0' = 'firefox-hardened-v1.1.0.zip'
+    'v1.1.1' = 'firefox-debloat-v1.1.1.zip'
+}
+$asset = if ($Assets.ContainsKey($version)) { $Assets[$version] } else { "firefox-debloat-$version.zip" }
 $url = "https://github.com/$Owner/$Repo/releases/download/$version/$asset"
 
 $temp = Join-Path ([IO.Path]::GetTempPath()) ("firefox-debloat-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
@@ -86,6 +91,13 @@ try {
 
     Write-Info "Running windows\firefox-debloat.ps1..."
     & powershell -NoProfile -ExecutionPolicy Bypass -File $script @ScriptArgs
+
+    $mergeScript = Join-Path $root.FullName 'scripts\merge-arkenfox-betterfox.ps1'
+    if (Test-Path -LiteralPath $mergeScript) {
+        Write-Info "Running scripts\merge-arkenfox-betterfox.ps1 (Arkenfox + Betterfox layer)..."
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $mergeScript
+    }
+
     Write-Info "Done. The temporary files are deleted when this window closes."
 }
 finally {

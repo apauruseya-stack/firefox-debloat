@@ -25,20 +25,54 @@
     .\scripts\merge-arkenfox-betterfox.ps1
 #>
 [CmdletBinding()]
+param(
+    [string]$Profile,
+    [string]$ArkenfoxUrl,
+    [string]$BetterfoxUrl
+)
+
 # Pinned upstream versions (update these deliberately, then refresh the checksums):
 $ArkenfoxCommit = 'fb56d7bb4ed07898c9d94ca7ecc89697dd88cc3c'
 $ArkenfoxSha256 = 'E4AB33C6914899175CF7035E0E57A2D7F08AC887D8F957F1199E7E49BBE7E33E'
 $BetterfoxCommit = '067172a4b0dc90e78e5b8b94d9abfe6430c6a7be'
 $BetterfoxSha256 = '38A971C7B15225987BAF26DD98B884BFB114531B4F6A8F2E0E281FB0352D5240'
 
-param(
-    [string]$Profile,
-    [string]$ArkenfoxUrl = "https://raw.githubusercontent.com/arkenfox/user.js/$ArkenfoxCommit/user.js",
-    [string]$BetterfoxUrl = "https://raw.githubusercontent.com/yokoffing/Betterfox/$BetterfoxCommit/user.js"
-)
+if (-not $ArkenfoxUrl) { $ArkenfoxUrl = "https://raw.githubusercontent.com/arkenfox/user.js/$ArkenfoxCommit/user.js" }
+if (-not $BetterfoxUrl) { $BetterfoxUrl = "https://raw.githubusercontent.com/yokoffing/Betterfox/$BetterfoxCommit/user.js" }
 
 $ErrorActionPreference = 'Stop'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+# When run elevated, redirect %APPDATA% to the logged-in user's profile, like the debloat script.
+function Test-Admin {
+    if (-not ($env:OS -eq 'Windows_NT')) { return $false }
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return (New-Object Security.Principal.WindowsPrincipal($id)).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+if (Test-Admin) {
+    $current = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $console = $null
+    try { $console = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName } catch { $console = $null }
+    if ($console -and $console -ne $current) {
+        $userName = $console.Split('\')[-1]
+        $profilePath = $null
+        try {
+            $cim = Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
+                Where-Object { $_.LocalPath -like "*\$userName" } | Select-Object -First 1
+            if ($null -ne $cim -and (Test-Path -LiteralPath $cim.LocalPath)) { $profilePath = $cim.LocalPath }
+        } catch { $profilePath = $null }
+        if (-not $profilePath) {
+            $candidate = Join-Path 'C:\Users' $userName
+            if (Test-Path -LiteralPath $candidate) { $profilePath = $candidate }
+        }
+        if ($profilePath) {
+            $env:APPDATA = Join-Path $profilePath 'AppData\Roaming'
+            $env:LOCALAPPDATA = Join-Path $profilePath 'AppData\Local'
+            Write-Host "!! Running elevated; applying to $console's profiles instead." -ForegroundColor Yellow
+        }
+    }
+}
 
 if (-not $Profile) {
     $base = Join-Path $env:APPDATA 'Mozilla\Firefox\Profiles'

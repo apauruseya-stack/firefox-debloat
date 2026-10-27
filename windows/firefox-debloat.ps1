@@ -524,7 +524,9 @@ function Get-ProfilesIniPath([string]$Base, [string]$Ini) {
 # ---------------------------------------------------------------------------------------------
 # User step: user.js
 # ---------------------------------------------------------------------------------------------
-# Elevated with another admin account, %APPDATA% would be that account's, not the user's.
+# When the script is run elevated, %APPDATA% points at the administrator's profile, not the
+# logged-in user's, so the per-user step would touch the wrong (or no) profiles. Redirect the
+# environment to the console user's profile in that case instead of aborting.
 function Assert-UserContext {
     if (-not (Test-Admin)) { return }
     $current = [Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -532,10 +534,30 @@ function Assert-UserContext {
     try { $console = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName } catch { $console = $null }
     if (-not $console) {
         Write-Warn "Running as administrator. Reading the profiles of $current ($env:APPDATA)."
-    } elseif ($console -ne $current) {
-        Exit-WithError ("Running as $current, but the session belongs to $console. Run without " +
-            'elevation, as your regular user: the script asks for elevation only for the policies step.')
+        return
     }
+    if ($console -eq $current) { return }
+
+    $userName = $console.Split('\')[-1]
+    $profilePath = $null
+    try {
+        $cim = Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
+            Where-Object { $_.LocalPath -like "*\$userName" } | Select-Object -First 1
+        if ($null -ne $cim -and (Test-Path -LiteralPath $cim.LocalPath)) { $profilePath = $cim.LocalPath }
+    } catch { $profilePath = $null }
+    if (-not $profilePath) {
+        $candidate = Join-Path 'C:\Users' $userName
+        if (Test-Path -LiteralPath $candidate) { $profilePath = $candidate }
+    }
+    if (-not $profilePath) {
+        Exit-WithError ("Running as $current, but the session belongs to $console and its profile " +
+            'folder could not be located. Run without elevation, as your regular user: the script ' +
+            'asks for elevation only for the policies step.')
+    }
+    $env:APPDATA = Join-Path $profilePath 'AppData\Roaming'
+    $env:LOCALAPPDATA = Join-Path $profilePath 'AppData\Local'
+    Write-Warn ("Running as $current, but the session belongs to $console. Per-user changes are " +
+        "being applied to $console's profiles instead.")
 }
 
 # Deletes the given prefs from prefs.js. Firefox copies user.js values into prefs.js; without this
